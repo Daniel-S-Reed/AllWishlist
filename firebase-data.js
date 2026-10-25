@@ -88,7 +88,7 @@ function cleanItem(data) {
   const priceNum = parseFloat(String(data.price == null ? "" : data.price).replace(/[^0-9.]/g, ""));
 
   return {
-    name: name || "Untitled item",
+    name: (name || "Untitled item").slice(0, 1000),
     image: String(data.image || "").trim() || null,
     link: String(data.link || "").trim() || null,
     price: isNaN(priceNum) ? null : priceNum,
