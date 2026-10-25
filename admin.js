@@ -391,6 +391,383 @@
       });
   }
 
+  /* ---------- Categories editor ---------- */
+
+  // "Board Games" -> "BoardGames". Existing categories keep their stored value
+  // when renamed, so items never lose their category.
+  function categoryValueFromLabel(label, taken) {
+    var words = String(label)
+      .replace(/[^A-Za-z0-9 ]+/g, " ")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    var base =
+      words
+        .map(function (w) {
+          return w.charAt(0).toUpperCase() + w.slice(1);
+        })
+        .join("") || "Category";
+
+    var value = base;
+    var n = 2;
+    while (taken.indexOf(value) !== -1) {
+      value = base + n;
+      n++;
+    }
+    return value;
+  }
+
+  function openCategories() {
+    var rows = app()
+      .getCategories()
+      .map(function (c) {
+        return { value: c.value, label: c.label };
+      });
+    var items = app().getItems();
+
+    var dlg = makeDialog("Categories");
+    var form = el("form", "admin-form");
+
+    form.innerHTML =
+      '<p class="admin-hint">These are the filter buttons visitors see. Renaming a category keeps its items in it. ' +
+      "A category named Clothes also turns on the clothing-type filters.</p>" +
+      '<div class="admin-cat-list"></div>' +
+      '<div><button type="button" class="owner-btn" data-add>+ Add category</button></div>' +
+      '<p class="admin-error" role="alert" hidden></p>' +
+      '<div class="admin-actions">' +
+      '<button type="button" class="owner-btn" data-cancel>Cancel</button>' +
+      '<button type="submit" class="owner-btn owner-btn-primary">Save</button>' +
+      "</div>";
+
+    var listEl = form.querySelector(".admin-cat-list");
+    var errorEl = form.querySelector(".admin-error");
+    var submit = form.querySelector('[type="submit"]');
+
+    function countFor(value) {
+      return items.filter(function (it) {
+        return it.tags.indexOf(value) !== -1;
+      }).length;
+    }
+
+    function move(i, delta, focusAttr) {
+      var j = i + delta;
+      if (j < 0 || j >= rows.length) return;
+      var tmp = rows[i];
+      rows[i] = rows[j];
+      rows[j] = tmp;
+      renderRows();
+      var btn = listEl.children[j].querySelector("[" + focusAttr + "]");
+      if (btn && !btn.disabled) btn.focus();
+      else listEl.children[j].querySelector("input").focus();
+    }
+
+    function renderRows() {
+      listEl.innerHTML = "";
+
+      if (rows.length === 0) {
+        listEl.appendChild(el("p", "admin-hint", "No categories yet. Add one below."));
+      }
+
+      rows.forEach(function (row, i) {
+        var r = el("div", "admin-cat-row");
+
+        var up = el("button", "owner-btn", "↑");
+        up.type = "button";
+        up.disabled = i === 0;
+        up.setAttribute("data-up", "");
+        up.setAttribute("aria-label", "Move " + (row.label || "category") + " up");
+        up.addEventListener("click", function () {
+          move(i, -1, "data-up");
+        });
+
+        var down = el("button", "owner-btn", "↓");
+        down.type = "button";
+        down.disabled = i === rows.length - 1;
+        down.setAttribute("data-down", "");
+        down.setAttribute("aria-label", "Move " + (row.label || "category") + " down");
+        down.addEventListener("click", function () {
+          move(i, 1, "data-down");
+        });
+
+        var input = document.createElement("input");
+        input.type = "text";
+        input.value = row.label;
+        input.maxLength = 40;
+        input.placeholder = "Category name";
+        input.setAttribute("aria-label", "Category name");
+        input.addEventListener("input", function () {
+          row.label = input.value;
+        });
+
+        var n = row.value ? countFor(row.value) : 0;
+        var count = el("span", "admin-cat-count", n ? n + (n === 1 ? " item" : " items") : "");
+
+        var remove = el("button", "owner-btn owner-btn-danger", "Remove");
+        remove.type = "button";
+        remove.setAttribute("aria-label", "Remove " + (row.label || "category"));
+        remove.addEventListener("click", function () {
+          if (
+            n > 0 &&
+            !window.confirm(
+              n +
+                (n === 1 ? " item uses" : " items use") +
+                ' "' +
+                row.label +
+                '". They will keep it, but it won\'t appear as a filter button. Remove it?'
+            )
+          ) {
+            return;
+          }
+          rows.splice(i, 1);
+          renderRows();
+        });
+
+        r.appendChild(up);
+        r.appendChild(down);
+        r.appendChild(input);
+        r.appendChild(count);
+        r.appendChild(remove);
+        listEl.appendChild(r);
+      });
+    }
+
+    form.querySelector("[data-add]").addEventListener("click", function () {
+      rows.push({ value: "", label: "" });
+      renderRows();
+      var inputs = listEl.querySelectorAll("input");
+      inputs[inputs.length - 1].focus();
+    });
+
+    form.querySelector("[data-cancel]").addEventListener("click", function () {
+      dlg.close();
+    });
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      errorEl.hidden = true;
+
+      var clean = rows
+        .map(function (r) {
+          return { value: r.value, label: String(r.label).trim() };
+        })
+        .filter(function (r) {
+          return r.label;
+        });
+
+      var seen = {};
+      for (var k = 0; k < clean.length; k++) {
+        var key = clean[k].label.toLowerCase();
+        if (seen[key]) {
+          errorEl.textContent = 'Two categories are both named "' + clean[k].label + '".';
+          errorEl.hidden = false;
+          return;
+        }
+        seen[key] = true;
+      }
+
+      // New categories get a stored value made from their name.
+      var taken = clean
+        .map(function (r) {
+          return r.value;
+        })
+        .filter(Boolean);
+      clean.forEach(function (r) {
+        if (!r.value) {
+          r.value = categoryValueFromLabel(r.label, taken);
+          taken.push(r.value);
+        }
+      });
+
+      submit.disabled = true;
+      submit.textContent = "Saving…";
+
+      data
+        .saveSettings({ categories: clean })
+        .then(function (saved) {
+          app().applySettings(Object.assign({}, app().getSettings(), saved));
+          dlg.close();
+          say("Categories saved.");
+        })
+        .catch(function (err) {
+          errorEl.textContent = err.message;
+          errorEl.hidden = false;
+          submit.disabled = false;
+          submit.textContent = "Save";
+        });
+    });
+
+    dlg.appendChild(form);
+    renderRows();
+    dlg.showModal();
+  }
+
+  /* ---------- Colors editor ---------- */
+
+  var COLOR_FIELDS = [
+    ["accent", "Accent", "Buttons, highlights, prices"],
+    ["background", "Page background", ""],
+    ["card", "Cards and pop-ups", ""],
+    ["text", "Main text", ""],
+    ["muted", "Soft text", "Labels and captions"],
+    ["line", "Borders and grid lines", ""],
+  ];
+
+  var COLOR_PRESETS = {
+    Dark: null, // the built-in defaults
+    Light: {
+      accent: "#c2410c",
+      background: "#f6f4ef",
+      card: "#ffffff",
+      text: "#1c211d",
+      muted: "#5b6459",
+      line: "#d9d6c9",
+    },
+  };
+
+  function luminanceOf(hex) {
+    var n = parseInt(hex.slice(1), 16);
+    var lin = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function (v) {
+      v = v / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+  }
+
+  function contrastBetween(a, b) {
+    var la = luminanceOf(a);
+    var lb = luminanceOf(b);
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+  }
+
+  function openColors() {
+    var original = app().getTheme();
+    var working = Object.assign({}, original);
+    var saved = false;
+
+    var dlg = makeDialog("Colors");
+    var form = el("form", "admin-form");
+
+    form.innerHTML =
+      '<div class="admin-presets"><span class="admin-hint">Start from:</span></div>' +
+      '<div class="admin-colors"></div>' +
+      '<p class="admin-warn" role="status" hidden></p>' +
+      '<p class="admin-hint">Changes preview on the page behind this window. They only stick once you save.</p>' +
+      '<p class="admin-error" role="alert" hidden></p>' +
+      '<div class="admin-actions">' +
+      '<button type="button" class="owner-btn" data-cancel>Cancel</button>' +
+      '<button type="submit" class="owner-btn owner-btn-primary">Save</button>' +
+      "</div>";
+
+    var colorsEl = form.querySelector(".admin-colors");
+    var warnEl = form.querySelector(".admin-warn");
+    var errorEl = form.querySelector(".admin-error");
+    var submit = form.querySelector('[type="submit"]');
+    var inputs = {};
+    var hexLabels = {};
+
+    function checkContrast() {
+      var problems = [];
+      if (contrastBetween(working.text, working.background) < 4.5)
+        problems.push("main text on the page background");
+      if (contrastBetween(working.text, working.card) < 4.5)
+        problems.push("main text on cards");
+      if (contrastBetween(working.muted, working.background) < 3)
+        problems.push("soft text on the page background");
+
+      warnEl.hidden = problems.length === 0;
+      warnEl.textContent = problems.length
+        ? "Heads up: " + problems.join(", ") + " may be hard to read."
+        : "";
+    }
+
+    function pushPreview() {
+      app().applyTheme(working);
+      checkContrast();
+    }
+
+    COLOR_FIELDS.forEach(function (f) {
+      var key = f[0];
+      var row = el("label", "admin-color-row");
+
+      var text = el("span", "admin-color-name", f[1]);
+      if (f[2]) text.appendChild(el("small", "", f[2]));
+
+      var input = document.createElement("input");
+      input.type = "color";
+      input.value = working[key];
+      inputs[key] = input;
+
+      var hex = el("span", "admin-color-hex", working[key]);
+      hexLabels[key] = hex;
+
+      input.addEventListener("input", function () {
+        working[key] = input.value;
+        hex.textContent = input.value;
+        pushPreview();
+      });
+
+      row.appendChild(text);
+      row.appendChild(input);
+      row.appendChild(hex);
+      colorsEl.appendChild(row);
+    });
+
+    function setAll(theme) {
+      Object.keys(inputs).forEach(function (key) {
+        working[key] = theme[key];
+        inputs[key].value = theme[key];
+        hexLabels[key].textContent = theme[key];
+      });
+      pushPreview();
+    }
+
+    Object.keys(COLOR_PRESETS).forEach(function (name) {
+      var b = el("button", "owner-btn", name);
+      b.type = "button";
+      b.addEventListener("click", function () {
+        setAll(COLOR_PRESETS[name] || app().defaultTheme);
+      });
+      form.querySelector(".admin-presets").appendChild(b);
+    });
+
+    checkContrast();
+
+    // Leaving without saving puts the page's colors back.
+    dlg.addEventListener("close", function () {
+      if (!saved) app().applyTheme(original);
+    });
+
+    form.querySelector("[data-cancel]").addEventListener("click", function () {
+      dlg.close();
+    });
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      errorEl.hidden = true;
+      submit.disabled = true;
+      submit.textContent = "Saving…";
+
+      data
+        .saveSettings({ theme: working })
+        .then(function (savedSettings) {
+          saved = true;
+          app().applySettings(Object.assign({}, app().getSettings(), savedSettings));
+          dlg.close();
+          say("Colors saved.");
+        })
+        .catch(function (err) {
+          errorEl.textContent = err.message;
+          errorEl.hidden = false;
+          submit.disabled = false;
+          submit.textContent = "Save";
+        });
+    });
+
+    dlg.appendChild(form);
+    dlg.showModal();
+  }
+
   /* ---------- Owner bar ---------- */
 
   function buildBar() {
@@ -403,6 +780,16 @@
     addBtn.type = "button";
     addBtn.addEventListener("click", addItem);
     bar.appendChild(addBtn);
+
+    var catBtn = el("button", "owner-btn", "Categories");
+    catBtn.type = "button";
+    catBtn.addEventListener("click", openCategories);
+    bar.appendChild(catBtn);
+
+    var colorBtn = el("button", "owner-btn", "Colors");
+    colorBtn.type = "button";
+    colorBtn.addEventListener("click", openColors);
+    bar.appendChild(colorBtn);
 
     if (data.list.legacySheetId && !String(data.list.legacySheetId).startsWith("PASTE")) {
       var importBtn = el("button", "owner-btn", "Import from Google Sheet");

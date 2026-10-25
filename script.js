@@ -10,13 +10,25 @@
 
   var data = window.WishlistData;
 
-  // Categories and clothing sub-filters come from firebase-config.js.
+  // Categories start from firebase-config.js; the owner can change them on the
+  // site, and what they save (see applySettings) replaces these.
   var categoryFilters = data.categories;
+  var categoryLabels = {};
 
-  var categoryLabels = categoryFilters.reduce(function (acc, f) {
-    acc[f.value] = f.label;
-    return acc;
-  }, {});
+  function setCategories(list) {
+    categoryFilters = list;
+    categoryLabels = list.reduce(function (acc, f) {
+      acc[f.value] = f.label;
+      return acc;
+    }, {});
+
+    // Drop any selected filter whose category no longer exists.
+    if (typeof selectedCategories !== "undefined") {
+      Array.from(selectedCategories).forEach(function (value) {
+        if (!categoryLabels[value]) selectedCategories.delete(value);
+      });
+    }
+  }
 
   /* ---------- State ---------- */
 
@@ -26,6 +38,120 @@
   var loadError = false;
 
   var selectedCategories = new Set();
+
+  setCategories(categoryFilters);
+
+  /* ---------- Colors ---------- */
+
+  // The six colors the owner can change. These match the stylesheet's defaults.
+  var DEFAULT_THEME = {
+    accent: "#ff7a1a",
+    background: "#0b0f14",
+    card: "#12181f",
+    text: "#e6edf3",
+    muted: "#9aa4b2",
+    line: "#232b36",
+  };
+
+  var themeRoot = document.querySelector(".wishlist-page") || document.documentElement;
+  var currentTheme = Object.assign({}, DEFAULT_THEME);
+
+  function hexToRgb(hex) {
+    var n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+
+  function rgbToHex(r, g, b) {
+    return (
+      "#" +
+      [r, g, b]
+        .map(function (v) {
+          v = Math.max(0, Math.min(255, Math.round(v)));
+          return (v < 16 ? "0" : "") + v.toString(16);
+        })
+        .join("")
+    );
+  }
+
+  // amount < 0 darkens toward black, > 0 lightens toward white.
+  function shade(hex, amount) {
+    var c = hexToRgb(hex);
+    var target = amount < 0 ? 0 : 255;
+    var p = Math.abs(amount);
+    return rgbToHex(
+      c[0] + (target - c[0]) * p,
+      c[1] + (target - c[1]) * p,
+      c[2] + (target - c[2]) * p
+    );
+  }
+
+  // Dark or white text, whichever is easier to read on this color.
+  function readableOn(hex) {
+    var lin = hexToRgb(hex).map(function (v) {
+      v = v / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    var luminance = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+    return luminance > 0.179 ? "#0b0f14" : "#ffffff";
+  }
+
+  // Applies a { accent, background, card, text, muted, line } set of colors.
+  // Missing or invalid entries fall back to the defaults.
+  function applyTheme(theme) {
+    var t = {};
+    Object.keys(DEFAULT_THEME).forEach(function (key) {
+      var v = theme && theme[key];
+      t[key] = /^#[0-9a-fA-F]{6}$/.test(v || "") ? v.toLowerCase() : DEFAULT_THEME[key];
+    });
+
+    var s = themeRoot.style;
+    s.setProperty("--brass", t.accent);
+    s.setProperty("--forest", t.accent);
+    s.setProperty(
+      "--brass-deep",
+      t.accent === DEFAULT_THEME.accent ? "#f97316" : shade(t.accent, -0.08)
+    );
+    s.setProperty("--on-accent", readableOn(t.accent));
+    s.setProperty("--paper", t.background);
+    s.setProperty("--card", t.card);
+    s.setProperty("--ink", t.text);
+    s.setProperty("--ink-soft", t.muted);
+    s.setProperty("--line", t.line);
+
+    currentTheme = t;
+    return t;
+  }
+
+  // Remember the last saved settings so the page doesn't flash the default
+  // colors and categories while it waits for Firebase.
+  var settingsCacheKey = "wishlist-settings-" + data.listId;
+
+  var lastSettings = null; // the most recently applied settings object
+
+  function applySettings(settings) {
+    lastSettings = settings || null;
+    if (settings && Array.isArray(settings.categories)) setCategories(settings.categories);
+    applyTheme(settings && settings.theme);
+
+    try {
+      localStorage.setItem(settingsCacheKey, JSON.stringify(settings || null));
+    } catch (e) {
+      /* storage can be unavailable (private mode); the cache is optional */
+    }
+
+    render();
+  }
+
+  try {
+    var cachedSettings = JSON.parse(localStorage.getItem(settingsCacheKey) || "null");
+    if (cachedSettings) {
+      lastSettings = cachedSettings;
+      if (Array.isArray(cachedSettings.categories)) setCategories(cachedSettings.categories);
+      applyTheme(cachedSettings.theme);
+    }
+  } catch (e) {
+    /* ignore a missing or unreadable cache */
+  }
 
   var clothingTypes = data.clothingTypes;
 
@@ -118,6 +244,51 @@
   function priceValue(item) {
     var n = parseFloat(String(item.price));
     return isNaN(n) ? 0 : n;
+  }
+
+  /* ---------- Item images ---------- */
+
+  // A free image relay used only as a second try when a picture won't load
+  // directly. Set `imageProxy: ""` in firebase-config.js to turn this off.
+  var IMAGE_PROXY =
+    window.WISHLIST_CONFIG && window.WISHLIST_CONFIG.imageProxy !== undefined
+      ? window.WISHLIST_CONFIG.imageProxy
+      : "https://wsrv.nl/?url=";
+
+  function showImageMissing(wrap, img, url) {
+    img.hidden = true;
+
+    var box = wrap.querySelector(".item-image-missing");
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "item-image-missing";
+      wrap.appendChild(box);
+    }
+
+    box.textContent = url
+      ? ownerMode
+        ? "Image not available. Use Edit to fix its address."
+        : "Image not available"
+      : "No image";
+    if (url) box.title = url;
+  }
+
+  // Shows (or re-shows) a card's picture, clearing any earlier failure.
+  function setCardImage(wrap, img, url) {
+    var box = wrap.querySelector(".item-image-missing");
+    if (box) box.remove();
+
+    img.hidden = false;
+    delete img.dataset.relayed;
+    delete img.dataset.original;
+
+    if (!url) {
+      img.removeAttribute("src");
+      showImageMissing(wrap, img, "");
+      return;
+    }
+
+    img.src = url;
   }
 
   // 24 -> "24", 24.5 -> "24.50"
@@ -585,7 +756,6 @@
 
     var img = document.createElement("img");
     img.className = "item-image";
-    img.src = activeVariant().image || "placeholder.svg";
     img.alt = "";
     img.loading = "lazy";
     // Don't send this site's address to the image host. Some stores (LEGO, for one)
@@ -593,6 +763,23 @@
     img.referrerPolicy = "no-referrer";
 
     imgWrap.appendChild(img);
+
+    // If the picture won't load directly, retry once through an image relay
+    // (some stores refuse images shown on other sites). If that fails too,
+    // show a clear "not available" box instead of an empty gap.
+    img.addEventListener("error", function () {
+      var failed = img.getAttribute("src") || "";
+
+      if (IMAGE_PROXY && !img.dataset.relayed && /^https?:\/\//i.test(failed)) {
+        img.dataset.relayed = "1";
+        img.dataset.original = failed;
+        img.src = IMAGE_PROXY + encodeURIComponent(failed);
+        return;
+      }
+
+      console.warn("Image failed to load:", img.dataset.original || failed);
+      showImageMissing(imgWrap, img, img.dataset.original || failed);
+    });
 
     if (card.variants.length > 1) {
       var badge = document.createElement("span");
@@ -683,7 +870,7 @@
       var v = activeVariant();
       var priceText = v.price !== null && v.price !== "" ? "$" + formatPrice(v.price) : null;
 
-      img.src = v.image || "placeholder.svg";
+      setCardImage(imgWrap, img, v.image);
 
       if (colorLabel) {
         colorLabel.textContent = v.color ? v.color : "";
@@ -934,6 +1121,15 @@
     getClothingTypes: function () {
       return clothingTypes;
     },
+    getSettings: function () {
+      return lastSettings || {};
+    },
+    getTheme: function () {
+      return Object.assign({}, currentTheme);
+    },
+    defaultTheme: DEFAULT_THEME,
+    applyTheme: applyTheme, // used for the live preview while picking colors
+    applySettings: applySettings, // used after the owner saves categories or colors
   };
 
   // Show or hide the owner controls as the sign-in state changes.
@@ -947,4 +1143,12 @@
   render();
 
   reload();
+
+  // Saved categories and colors for this list (if the owner has set any).
+  data
+    .loadSettings()
+    .then(applySettings)
+    .catch(function (err) {
+      console.error("Couldn't load the site settings:", err);
+    });
 })();

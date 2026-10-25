@@ -13,6 +13,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/fireba
 import {
   getFirestore,
   collection,
+  getDoc,
   getDocs,
   addDoc,
   setDoc,
@@ -131,6 +132,48 @@ async function loadItems() {
       color: data.color || null,
     };
   });
+}
+
+/* ---------- Per-list settings (categories + colors) ----------
+   Stored on the list's own document: lists/{listId}
+   Anything not saved there falls back to firebase-config.js. */
+
+const THEME_KEYS = ["accent", "background", "card", "text", "muted", "line"];
+
+async function loadSettings() {
+  if (!configured) return null;
+  const snap = await getDoc(doc(db, "lists", listId));
+  return snap.exists() ? snap.data() : null;
+}
+
+async function saveSettings(settings) {
+  const out = {};
+
+  if (Array.isArray(settings.categories)) {
+    const seen = new Set();
+    out.categories = settings.categories
+      .map((c) => ({ value: String(c.value || "").trim(), label: String(c.label || "").trim() }))
+      .filter((c) => {
+        if (!c.value || !c.label || seen.has(c.value)) return false;
+        seen.add(c.value);
+        return true;
+      });
+  }
+
+  if (settings.theme) {
+    out.theme = {};
+    THEME_KEYS.forEach((key) => {
+      const v = String(settings.theme[key] || "").trim();
+      if (/^#[0-9a-fA-F]{6}$/.test(v)) out.theme[key] = v.toLowerCase();
+    });
+  }
+
+  try {
+    await setDoc(doc(db, "lists", listId), out, { merge: true });
+  } catch (err) {
+    throw new Error(friendlyError(err));
+  }
+  return out;
 }
 
 async function saveItem(id, data) {
@@ -325,6 +368,8 @@ window.WishlistData = {
   whoami: () => (currentUser ? { email: currentUser.email, uid: currentUser.uid } : null),
   onAuth,
   loadItems,
+  loadSettings,
+  saveSettings,
   saveItem,
   deleteItem,
   signIn,
