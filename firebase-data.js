@@ -101,6 +101,7 @@ function cleanItem(data) {
 
 function friendlyError(err) {
   const code = (err && err.code) || "";
+  if (code === "permission-denied") console.error("Firestore permission denied:", err);
   if (code === "permission-denied")
     return "Firebase refused the change. Are you signed in as this list's owner, and are the security rules published?";
   if (code === "unavailable") return "Couldn't reach Firebase. Check your connection and try again.";
@@ -321,6 +322,7 @@ window.WishlistData = {
   categories: list.categories,
   clothingTypes: cfg.clothingTypes,
   isOwner,
+  whoami: () => (currentUser ? { email: currentUser.email, uid: currentUser.uid } : null),
   onAuth,
   loadItems,
   saveItem,

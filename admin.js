@@ -422,6 +422,14 @@
     status.id = "admin-status";
     status.setAttribute("role", "status");
     bar.appendChild(status);
+
+    // Shows which account is signed in. The UID here must match the one in the
+    // Firestore rules, so this is the first thing to check if saving is refused.
+    var who = data.whoami && data.whoami();
+    if (who) {
+      var whoEl = el("span", "admin-who", "Signed in as " + who.email + " · UID: " + who.uid);
+      bar.appendChild(whoEl);
+    }
   }
 
   function onAuthChange(owner) {

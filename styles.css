@@ -553,6 +553,15 @@ body {
   color: var(--ink-soft);
 }
 
+.admin-who {
+  flex-basis: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+  word-break: break-all;
+  user-select: all;
+}
+
 .owner-tools {
   display: flex;
   gap: 0.4rem;
