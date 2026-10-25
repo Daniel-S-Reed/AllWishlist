@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b0f14" />
+  <title>Wish List</title>
+  <meta name="description" content="Browse the wish list by category or price, then follow a card through to buy." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23ff7a1a'/%3E%3Ctext x='12' y='17' font-size='13' text-anchor='middle' fill='%230b0f14' font-family='Georgia,serif'%3EW%3C/text%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet" />
+
+  <link href="styles.css" rel="stylesheet" />
+</head>
+<!-- data-list picks which list this page shows (see firebase-config.js). -->
+<body data-list="brother">
+  <div class="wishlist-page">
+
+    <a class="skip-link" href="#items">Skip to the wish list items</a>
+
+    <!-- Appears only while signed in as this list's owner. -->
+    <div class="admin-bar" id="admin-bar" hidden></div>
+
+    <header class="site-header">
+      <p class="eyebrow" id="site-eyebrow"></p>
+      <h1 id="site-title">Wish List</h1>
+      <p class="lede" id="site-lede"></p>
+    </header>
+
+    <section class="controls" aria-labelledby="filter-heading">
+      <h2 id="filter-heading" class="sr-only">Filter and sort the list</h2>
+
+      <div class="control-group">
+        <span class="control-label">Category</span>
+        <div class="chip-row" id="category-row"></div>
+      </div>
+
+      <!-- Clothing sub-filters; shown only while "Clothes" is selected. -->
+      <div class="control-group">
+        <div class="chip-row" id="clothing-row" hidden></div>
+      </div>
+
+      <div class="control-group">
+        <span class="control-label">Collections</span>
+        <button type="button" class="chip" id="fav-toggle" aria-pressed="false">Favorites only</button>
+      </div>
+
+      <div class="control-group price-group">
+        <span class="control-label">Price</span>
+        <div id="price-container"><span class="price-loading">Loading&hellip;</span></div>
+      </div>
+
+      <div class="control-group">
+        <span class="control-label">Sort by</span>
+        <div class="chip-row">
+          <button type="button" class="chip active" id="sort-alpha" aria-pressed="true">Name (A&ndash;Z)</button>
+          <button type="button" class="chip" id="sort-price" aria-pressed="false">Price <span class="sort-dir" id="sort-price-dir" aria-hidden="true"></span></button>
+        </div>
+      </div>
+    </section>
+
+    <div class="status-bar">
+      <div class="active-filters" id="active-filters" hidden></div>
+      <button type="button" class="clear-btn" id="clear-btn" hidden>Clear filters</button>
+      <span class="count" id="count" aria-hidden="true"></span>
+    </div>
+
+    <!-- Screen-reader announcements for results and loading. -->
+    <p class="sr-only" id="results-message" role="status" aria-live="polite"></p>
+
+    <p class="load-state" id="load-state">Loading the list&hellip;</p>
+
+    <section aria-labelledby="items-heading">
+      <h2 id="items-heading" class="sr-only">Wish list items</h2>
+      <ul class="catalog" id="items"></ul>
+    </section>
+
+    <footer class="site-footer">
+      <p>
+        Prices reflect the listed price when added &mdash; always worth a second check at checkout.
+        <button type="button" class="owner-login" id="owner-login">Owner login</button>
+      </p>
+    </footer>
+
+    <button type="button" class="top-btn" id="top-btn" title="Back to top" hidden>&uarr; Top</button>
+  </div>
+
+  <!-- Order matters: config -> data layer (module) -> page scripts. -->
+  <script src="firebase-config.js"></script>
+  <script type="module" src="firebase-data.js"></script>
+  <script defer src="script.js"></script>
+  <script defer src="admin.js"></script>
+</body>
+</html>

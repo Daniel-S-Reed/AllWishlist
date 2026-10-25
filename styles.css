@@ -1,0 +1,772 @@
+/* ============================================================
+   Daniel's Wish List — standalone HTML/CSS/JS version
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.wishlist-page {
+  /* Dark tech palette — orange primary accent */
+  --ink: #e6edf3;
+  --ink-soft: #9aa4b2;
+  --paper: #0b0f14;
+  --card: #12181f;
+  --line: #232b36;
+  --brass: #ff7a1a;
+  --brass-deep: #f97316;
+  --forest: #ff7a1a;
+  --focus: #38bdf8;
+
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  min-height: 100vh;
+  padding: 0 6vw 5rem;
+  background: var(--paper);
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 44px 44px;
+  background-position: -1px -1px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  line-height: 1.5;
+}
+
+.wishlist-page a {
+  color: inherit;
+}
+
+.wishlist-page button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.wishlist-page button:focus-visible,
+.wishlist-page a:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------- Accessibility helpers ---------- */
+
+/* Visually hidden but available to screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip link — hidden until focused via keyboard. */
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -3rem;
+  z-index: 10;
+  background: var(--forest);
+  color: #fff;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+
+.skip-link:focus {
+  top: 1rem;
+}
+
+/* ---------- Header ---------- */
+
+.site-header {
+  max-width: 46rem;
+  padding-top: 4.5rem;
+  padding-bottom: 2.5rem;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brass-deep);
+  margin: 0 0 0.75rem;
+}
+
+.site-header h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(2.5rem, 5vw, 3.75rem);
+  line-height: 1.05;
+  margin: 0 0 1rem;
+  letter-spacing: -0.01em;
+}
+
+.lede {
+  font-size: 1.05rem;
+  color: var(--brass-deep);
+  max-width: 34rem;
+  margin: 0;
+}
+
+/* ---------- Controls ---------- */
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 1.75rem 0;
+  margin-bottom: 1.25rem;
+}
+
+.control-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 0.6rem;
+}
+
+.control-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  min-width: 6rem;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chip {
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.chip:hover {
+  border-color: var(--brass);
+}
+
+.chip.active,
+.chip[aria-pressed="true"] {
+  background: var(--forest);
+  border-color: var(--forest);
+  color: var(--paper);
+  font-weight: 600;
+}
+
+.chip-all.active {
+  background: var(--brass);
+  border-color: var(--brass);
+}
+
+.sort-dir {
+  margin-left: 0.25rem;
+}
+
+/* ---------- Price slider ---------- */
+
+.price-group {
+  align-items: flex-start;
+}
+
+.price-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 15rem;
+}
+
+.price-readout {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--brass-deep);
+}
+
+.range-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.range-inputs input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line);
+  cursor: pointer;
+}
+
+.range-inputs input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--brass);
+  border: 2px solid var(--paper);
+  box-shadow: 0 0 0 1px var(--brass);
+}
+
+.range-inputs input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--brass);
+  border: 2px solid var(--paper);
+  box-shadow: 0 0 0 1px var(--brass);
+}
+
+.range-inputs input[type="range"]:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+}
+
+.price-loading {
+  font-family: var(--font-mono);
+  color: var(--ink-soft);
+}
+
+/* ---------- Status bar ---------- */
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  min-height: 1.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.active-filters .tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  color: var(--ink-soft);
+}
+
+.clear-btn {
+  background: none;
+  border: none;
+  color: var(--brass-deep);
+  font-size: 0.8rem;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+/* ---------- States ---------- */
+
+.load-state,
+.empty-state {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  padding: 2rem 0;
+}
+
+/* ---------- Catalog grid ---------- */
+
+.catalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.item-card > article {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.item-card {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.item-card:hover {
+  border-color: var(--brass);
+  transform: translateY(-2px);
+}
+
+.item-image-wrap {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: #fff;
+  overflow: hidden;
+}
+
+.item-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.item-body {
+  padding: 0.9rem 1rem 0.4rem;
+  flex: 1;
+}
+
+.item-name {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+  line-height: 1.25;
+}
+
+.item-price {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--brass-deep);
+}
+
+.item-link {
+  display: block;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-decoration: none;
+  color: var(--forest);
+  border-top: 1px solid var(--line);
+  padding: 0.65rem 0;
+  margin-top: 0.7rem;
+}
+
+.item-link:hover {
+  background: var(--forest);
+  color: var(--paper);
+  font-weight: 600;
+}
+
+.item-nolink {
+  display: block;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  border-top: 1px solid var(--line);
+  padding: 0.65rem 0;
+  margin-top: 0.7rem;
+}
+
+/* ---------- Variant swatches (color/price options on one card) ---------- */
+
+.variant-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  background: rgba(11, 15, 20, 0.85);
+  border: 1px solid var(--brass);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.variant-color-label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin-top: 0.2rem;
+}
+
+.variant-group {
+  margin-top: 0.6rem;
+}
+
+.variant-group-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  margin-bottom: 0.35rem;
+}
+
+.variant-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.swatch {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  padding: 0;
+  border: 2px solid var(--line);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.swatch:hover {
+  transform: scale(1.1);
+}
+
+.swatch[aria-pressed="true"] {
+  border-color: var(--brass);
+  box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.35);
+}
+
+/* ---------- Footer ---------- */
+
+.site-footer {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+/* ---------- Back to top ---------- */
+
+.top-btn {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  background: var(--forest);
+  color: var(--paper);
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.top-btn:hover {
+  background: var(--brass-deep);
+}
+
+/* ---------- Owner tools (visible only when signed in) ---------- */
+
+/* The `hidden` attribute must beat the display rules below. */
+.admin-bar[hidden],
+.owner-login[hidden],
+.admin-dialog [hidden] {
+  display: none !important;
+}
+
+.owner-login {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 0.5rem;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  text-decoration: underline;
+}
+
+.owner-login:hover {
+  color: var(--brass);
+}
+
+.admin-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 -6vw;
+  padding: 0.7rem 6vw;
+  background: rgba(11, 15, 20, 0.95);
+  border-bottom: 1px solid var(--brass);
+}
+
+.admin-bar-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brass-deep);
+  margin-right: auto;
+}
+
+.admin-status {
+  flex-basis: 100%;
+  min-height: 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.owner-tools {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem 0.75rem;
+  border-top: 1px dashed var(--line);
+}
+
+.owner-btn {
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.78rem;
+}
+
+.owner-btn:hover {
+  border-color: var(--brass);
+}
+
+.owner-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.owner-btn-primary {
+  background: var(--brass);
+  border-color: var(--brass);
+  color: var(--paper);
+  font-weight: 600;
+}
+
+.owner-btn-primary:hover {
+  background: var(--brass-deep);
+}
+
+.owner-btn-danger:hover {
+  border-color: #ff6b6b;
+  color: #ff6b6b;
+}
+
+/* ---------- Owner dialogs (login, add / edit) ---------- */
+
+.admin-dialog {
+  width: min(34rem, 92vw);
+  max-height: 90vh;
+  padding: 1.5rem;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-family: var(--font-body);
+}
+
+.admin-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.admin-dialog-title {
+  margin: 0 0 1rem;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+}
+
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex: 1;
+}
+
+.admin-field > span,
+.admin-fieldset legend {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.admin-field input,
+.admin-details input {
+  width: 100%;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.55rem 0.7rem;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.admin-field input:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.admin-row {
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-end;
+}
+
+.admin-fieldset {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem 0.8rem;
+  margin: 0;
+}
+
+.admin-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin-top: 0.3rem;
+}
+
+.admin-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.admin-check-fav {
+  padding-bottom: 0.6rem;
+}
+
+.admin-check input {
+  accent-color: var(--brass);
+}
+
+.admin-preview {
+  max-height: 7.5rem;
+  max-width: 100%;
+  align-self: flex-start;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.admin-details summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--brass-deep);
+}
+
+.admin-details[open] summary {
+  margin-bottom: 0.5rem;
+}
+
+.admin-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.admin-error {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+  color: #ff8a8a;
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.4);
+  border-radius: 6px;
+}
+
+.admin-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+}
+
+.admin-actions .owner-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 640px) {
+  .wishlist-page {
+    padding: 0 5vw 4rem;
+  }
+  .control-label {
+    min-width: 100%;
+  }
+  .status-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .count {
+    margin-left: 0;
+  }
+  .admin-bar {
+    margin: 0 -5vw;
+    padding: 0.7rem 5vw;
+  }
+  .admin-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wishlist-page * {
+    transition: none !important;
+  }
+}
