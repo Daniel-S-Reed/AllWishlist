@@ -588,7 +588,9 @@
     img.src = activeVariant().image || "placeholder.svg";
     img.alt = "";
     img.loading = "lazy";
-    img.crossOrigin = "anonymous";
+    // Don't send this site's address to the image host. Some stores (LEGO, for one)
+    // refuse images when the request says it came from another website.
+    img.referrerPolicy = "no-referrer";
 
     imgWrap.appendChild(img);
 
