@@ -56,15 +56,25 @@ window.WISHLIST_CONFIG = {
       // His Google Form saves answers into a Google Sheet. Paste that sheet's ID here
       // (the long part of its URL between /d/ and /edit), and share the sheet as
       // "Anyone with the link can view". Then use "Import from Google Sheet" once.
-      legacySheetId: "PASTE_HIS_SHEET_ID",
+      legacySheetId: "1OhQ24THYbuf0YDCHmxR9nd1OQoW5SdesL52-vQhwhos",
       legacyTab: "Form Responses 1", // the tab name at the bottom of the sheet
       legacyColumns: "auto", // finds Name / Price / Link / Image / Category by their headings
       // Starter categories — edit freely. Add "Clothes" if he wants the clothing sub-filters.
       categories: [
-        { value: "Games", label: "Games" },
-        { value: "Books", label: "Books" },
-        { value: "Tech", label: "Tech" },
-        { value: "Clothes", label: "Clothes" },
+        { value: "Lego", label: "Lego" },
+        { value: "City", label: "City" },
+        { value: "Ninjago", label: "Ninjago" },
+        { value: "Train", label: "Train" },
+        { value: "Construction", label: "Construction" },
+        { value: "Plane", label: "Plane" },
+        { value: "Police", label: "Police" },
+        { value: "Fire", label: "Fire" },
+        { value: "Boat", label: "Boat" },
+        { value: "Disney", label: "Disney" },
+        { value: "Harry Potter", label: "HarryPotter" },
+        { value: "CD's", label: "CD" },
+        { value: "LED Lights", label: "LED" },
+        { value: "Room Decor", label: "RoomDecor" },        
         { value: "Other", label: "Other" },
       ],
     },
