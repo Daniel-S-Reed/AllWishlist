@@ -835,7 +835,7 @@
         swatch.setAttribute("aria-pressed", String(i === activeIndex));
         swatch.setAttribute("aria-label", v.color || "Option " + (i + 1));
         swatch.title = v.color || "Option " + (i + 1);
-        swatch.style.backgroundColor = v.color ? v.color.toLowerCase() : "#999";
+        swatch.style.backgroundColor = v.swatch || (v.color ? v.color.toLowerCase() : "#999");
 
         swatch.addEventListener("click", function () {
           activeIndex = i;
@@ -878,6 +878,9 @@
 
       if (priceText) {
         price.innerHTML = '<span class="sr-only">Price: </span>' + priceText;
+        price.title = v.priceCheckedAt
+          ? "Price checked " + new Date(v.priceCheckedAt).toLocaleDateString()
+          : "";
         price.style.display = "";
       } else {
         price.innerHTML = "";
