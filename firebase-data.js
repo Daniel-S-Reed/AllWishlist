@@ -97,6 +97,12 @@ function cleanItem(data) {
     clothingTypes: asArray(data.clothingTypes),
     group: String(data.group || "").trim() || null,
     color: String(data.color || "").trim() || null,
+    // The swatch dot's color, picked by the owner (#rrggbb), or null to guess from the name.
+    swatch: /^#[0-9a-fA-F]{6}$/.test(String(data.swatch || "")) ? String(data.swatch).toLowerCase() : null,
+    // When the price was last checked or confirmed (milliseconds since 1970), or null.
+    priceCheckedAt: Number.isFinite(Number(data.priceCheckedAt)) && Number(data.priceCheckedAt) > 0
+      ? Number(data.priceCheckedAt)
+      : null,
   };
 }
 
@@ -130,6 +136,8 @@ async function loadItems() {
       clothingTypes: data.clothingTypes || [],
       group: data.group || null,
       color: data.color || null,
+      swatch: data.swatch || null,
+      priceCheckedAt: data.priceCheckedAt || null,
     };
   });
 }
@@ -189,6 +197,24 @@ async function saveItem(id, data) {
   } catch (err) {
     throw new Error(friendlyError(err));
   }
+}
+
+// updates: [{ id, price?, priceCheckedAt }] — only those fields are changed.
+async function updatePrices(updates) {
+  try {
+    for (let i = 0; i < updates.length; i += 400) {
+      const batch = writeBatch(db);
+      updates.slice(i, i + 400).forEach((u) => {
+        const fields = { priceCheckedAt: u.priceCheckedAt || Date.now() };
+        if (typeof u.price === "number" && isFinite(u.price) && u.price >= 0) fields.price = u.price;
+        batch.update(doc(db, "lists", listId, "items", u.id), fields);
+      });
+      await batch.commit();
+    }
+  } catch (err) {
+    throw new Error(friendlyError(err));
+  }
+  return updates.length;
 }
 
 async function deleteItem(id) {
@@ -371,6 +397,7 @@ window.WishlistData = {
   loadSettings,
   saveSettings,
   saveItem,
+  updatePrices,
   deleteItem,
   signIn,
   signOut,

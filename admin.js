@@ -114,6 +114,115 @@
     form.elements.password.focus();
   }
 
+  /* ---------- Swatch + price helpers ---------- */
+
+  var NAMED = {
+    black: "#1a1a1a", white: "#f5f5f5", red: "#d32f2f", blue: "#1976d2", navy: "#1a2a52",
+    green: "#388e3c", yellow: "#fbc02d", orange: "#f57c00", purple: "#7b1fa2", pink: "#ec6fa1",
+    gray: "#808080", grey: "#808080", brown: "#6d4c41", tan: "#c8a87a", beige: "#d9c6a5",
+    cream: "#f3ead3", gold: "#c9a227", silver: "#bdbdbd", teal: "#00897b", maroon: "#7b1e2b",
+    olive: "#6b6b2a", khaki: "#b5a66b", charcoal: "#36454f",
+  };
+
+  // Turns a color name into a hex value if the browser (or our list) knows it.
+  function nameToHex(name) {
+    var n = String(name || "").trim().toLowerCase();
+    if (!n) return null;
+    if (NAMED[n]) return NAMED[n];
+    var probe = document.createElement("span");
+    probe.style.color = "";
+    probe.style.color = n;
+    if (!probe.style.color) return null;
+    var c = document.createElement("canvas").getContext && document.createElement("canvas").getContext("2d");
+    if (!c) return null;
+    c.fillStyle = "#000000";
+    c.fillStyle = n;
+    return /^#[0-9a-f]{6}$/i.test(c.fillStyle) ? c.fillStyle : null;
+  }
+
+  function ageText(ms) {
+    var days = Math.floor((Date.now() - ms) / 86400000);
+    if (days <= 0) return "today";
+    if (days === 1) return "yesterday";
+    if (days < 30) return days + " days ago";
+    var months = Math.floor(days / 30);
+    return months === 1 ? "a month ago" : months + " months ago";
+  }
+
+  // Pulls a price out of a store page's HTML (structured data first).
+  function priceFromHtml(html) {
+    var m;
+    var re = /<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi;
+    while ((m = re.exec(html))) {
+      try {
+        var found = priceFromJson(JSON.parse(m[1]));
+        if (found !== null) return found;
+      } catch (e) {}
+    }
+    var metas = [
+      /<meta[^>]+(?:property|name)=["'](?:product:price:amount|og:price:amount|twitter:data1)["'][^>]*content=["']\$?([\d.,]+)["']/i,
+      /<meta[^>]+content=["']\$?([\d.,]+)["'][^>]+(?:property|name)=["'](?:product:price:amount|og:price:amount)["']/i,
+      /itemprop=["']price["'][^>]*content=["']([\d.,]+)["']/i,
+      /content=["']([\d.,]+)["'][^>]*itemprop=["']price["']/i,
+    ];
+    for (var i = 0; i < metas.length; i++) {
+      m = html.match(metas[i]);
+      if (m) {
+        var v = parseFloat(m[1].replace(/,/g, ""));
+        if (isFinite(v) && v > 0) return v;
+      }
+    }
+    return null;
+  }
+
+  function priceFromJson(node) {
+    if (!node || typeof node !== "object") return null;
+    if (Array.isArray(node)) {
+      for (var i = 0; i < node.length; i++) {
+        var r = priceFromJson(node[i]);
+        if (r !== null) return r;
+      }
+      return null;
+    }
+    var raw = node.price !== undefined ? node.price : node.lowPrice;
+    if (raw !== undefined && raw !== null && raw !== "") {
+      var v = parseFloat(String(raw).replace(/,/g, ""));
+      if (isFinite(v) && v > 0) return v;
+    }
+    for (var k in node) {
+      if (node[k] && typeof node[k] === "object") {
+        var r2 = priceFromJson(node[k]);
+        if (r2 !== null) return r2;
+      }
+    }
+    return null;
+  }
+
+  var RELAYS = [
+    function (u) { return "https://api.allorigins.win/raw?url=" + encodeURIComponent(u); },
+    function (u) { return "https://corsproxy.io/?" + encodeURIComponent(u); },
+  ];
+
+  // Browsers can't read other sites directly, so go through a public relay.
+  // Resolves to a number, or null when no price could be found.
+  function fetchPrice(url) {
+    var tryRelay = function (i) {
+      if (i >= RELAYS.length) return Promise.reject(new Error("unreachable"));
+      return fetch(RELAYS[i](url))
+        .then(function (res) {
+          if (!res.ok) throw new Error("bad status");
+          return res.text();
+        })
+        .then(function (html) {
+          return priceFromHtml(html);
+        })
+        .catch(function () {
+          return tryRelay(i + 1);
+        });
+    };
+    return tryRelay(0);
+  }
+
   /* ---------- Add / edit form ---------- */
 
   // opts: { item, prefill, afterSave }
@@ -150,8 +259,10 @@
       '<div class="admin-row">' +
       '<label class="admin-field"><span>Price ($)</span>' +
       '<input type="number" name="price" min="0" step="0.01" inputmode="decimal"></label>' +
+      '<button type="button" class="owner-btn admin-check-price" data-check-price>Check price</button>' +
       '<label class="admin-check admin-check-fav"><input type="checkbox" name="fav"> <span>Favorite</span></label>' +
       "</div>" +
+      '<p class="admin-hint" data-price-note hidden></p>' +
       '<label class="admin-field"><span>Link to buy</span>' +
       '<input type="url" name="link" placeholder="https://…"></label>' +
       '<label class="admin-field"><span>Image URL</span>' +
@@ -165,6 +276,12 @@
       '<label class="admin-field"><span>Group ID</span><input type="text" name="group" list="admin-groups" maxlength="60"></label>' +
       '<label class="admin-field"><span>Color name</span><input type="text" name="color" maxlength="40" placeholder="e.g. Black"></label>' +
       "</div>" +
+      '<div class="admin-field admin-swatch-field"><span>Swatch color</span>' +
+      '<div class="admin-swatch-row">' +
+      '<input type="color" name="swatch" value="#999999" aria-label="Swatch color">' +
+      '<span class="admin-swatch-note" data-swatch-note></span>' +
+      '<button type="button" class="owner-btn" data-swatch-auto>Match the name</button>' +
+      "</div></div>" +
       '<datalist id="admin-groups"></datalist>' +
       "</details>" +
       '<p class="admin-error" role="alert" hidden></p>' +
@@ -183,7 +300,81 @@
     form.elements.color.value = start.color || "";
     form.elements.fav.checked = startTags.indexOf("Fav") !== -1;
 
-    if (start.group || start.color) form.querySelector(".admin-details").open = true;
+    if (start.group || start.color || start.swatch) form.querySelector(".admin-details").open = true;
+
+    // Swatch color: the owner's pick, or (when never touched) a guess from the name.
+    var swatchInput = form.elements.swatch;
+    var swatchNote = form.querySelector("[data-swatch-note]");
+    var swatchPicked = !!start.swatch;
+    function guessFromName() {
+      return nameToHex(form.elements.color.value);
+    }
+    function refreshSwatch() {
+      if (!swatchPicked) {
+        var g = guessFromName();
+        if (g) swatchInput.value = g;
+      }
+      swatchNote.textContent = swatchPicked
+        ? "Your pick"
+        : guessFromName()
+        ? "Matched from the name"
+        : "Pick one";
+    }
+    if (start.swatch) swatchInput.value = start.swatch;
+    swatchInput.addEventListener("input", function () {
+      swatchPicked = true;
+      refreshSwatch();
+    });
+    form.elements.color.addEventListener("input", refreshSwatch);
+    form.querySelector("[data-swatch-auto]").addEventListener("click", function () {
+      swatchPicked = false;
+      refreshSwatch();
+    });
+    refreshSwatch();
+
+    // Price: stamp when it was checked, and offer a one-click check from the link.
+    var priceNote = form.querySelector("[data-price-note]");
+    var checkedAt = start.priceCheckedAt || null;
+    var startPrice = form.elements.price.value;
+    function showPriceNote(extra) {
+      var bits = [];
+      if (checkedAt) bits.push("Price last checked " + ageText(checkedAt) + ".");
+      if (extra) bits.push(extra);
+      priceNote.textContent = bits.join(" ");
+      priceNote.hidden = bits.length === 0;
+    }
+    showPriceNote();
+    form.elements.price.addEventListener("input", function () {
+      checkedAt = Date.now();
+      showPriceNote();
+    });
+    var checkBtn = form.querySelector("[data-check-price]");
+    checkBtn.addEventListener("click", function () {
+      var url = form.elements.link.value.trim();
+      if (!url) {
+        showPriceNote("Add a link first so there is a page to check.");
+        return;
+      }
+      checkBtn.disabled = true;
+      checkBtn.textContent = "Checking…";
+      fetchPrice(url)
+        .then(function (found) {
+          if (found === null) {
+            showPriceNote("Couldn't read a price from that page. Type it in yourself.");
+          } else {
+            form.elements.price.value = found;
+            checkedAt = Date.now();
+            showPriceNote("Found $" + found + " on the page.");
+          }
+        })
+        .catch(function () {
+          showPriceNote("Couldn't reach that page. Type the price in yourself.");
+        })
+        .then(function () {
+          checkBtn.disabled = false;
+          checkBtn.textContent = "Check price";
+        });
+    });
 
     groupOptions.forEach(function (g) {
       var opt = document.createElement("option");
@@ -282,6 +473,8 @@
         clothingTypes: clothingTypes,
         group: form.elements.group.value,
         color: form.elements.color.value,
+        swatch: swatchPicked ? swatchInput.value : null,
+        priceCheckedAt: checkedAt,
       };
 
       submit.disabled = true;
@@ -347,6 +540,8 @@
           clothingTypes: item.clothingTypes,
           group: group,
           color: item.color,
+          swatch: item.swatch,
+          priceCheckedAt: item.priceCheckedAt,
         });
       },
     });
@@ -388,6 +583,58 @@
       })
       .catch(function (err) {
         say("Import failed: " + err.message);
+      });
+  }
+
+  // Re-reads every item's price from its link. Only changes prices it actually
+  // finds; items it can't read are left alone.
+  function refreshPrices() {
+    var items = app().getItems().filter(function (it) {
+      return it.link;
+    });
+    if (!items.length) {
+      say("No items with links to check.");
+      return;
+    }
+    if (!window.confirm("Check the price of " + items.length + " items from their links? This can take a minute.")) return;
+
+    var updates = [];
+    var changed = 0;
+    var failed = 0;
+    var i = 0;
+
+    function next() {
+      if (i >= items.length) return Promise.resolve();
+      var it = items[i++];
+      say("Checking prices… " + i + " of " + items.length);
+      return fetchPrice(it.link)
+        .then(function (found) {
+          if (found === null) {
+            failed++;
+            return;
+          }
+          if (it.price === null || Math.abs(Number(it.price) - found) > 0.005) changed++;
+          updates.push({ id: it.id, price: found, priceCheckedAt: Date.now() });
+        })
+        .catch(function () {
+          failed++;
+        })
+        .then(next);
+    }
+
+    next()
+      .then(function () {
+        return updates.length ? data.updatePrices(updates) : 0;
+      })
+      .then(function () {
+        say(
+          "Checked " + updates.length + " prices, " + changed + " changed" +
+            (failed ? ", " + failed + " couldn't be read" : "") + "."
+        );
+        return app().reload();
+      })
+      .catch(function (err) {
+        say("Price check failed: " + err.message);
       });
   }
 
@@ -797,6 +1044,11 @@
       importBtn.addEventListener("click", importFromSheet);
       bar.appendChild(importBtn);
     }
+
+    var priceBtn = el("button", "owner-btn", "Refresh prices");
+    priceBtn.type = "button";
+    priceBtn.addEventListener("click", refreshPrices);
+    bar.appendChild(priceBtn);
 
     var outBtn = el("button", "owner-btn", "Sign out");
     outBtn.type = "button";
