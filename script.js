@@ -881,6 +881,10 @@
         price.title = v.priceCheckedAt
           ? "Price checked " + new Date(v.priceCheckedAt).toLocaleDateString()
           : "";
+        // Owner-only nudge when a price hasn't been confirmed in a while.
+        if (ownerMode && (!v.priceCheckedAt || Date.now() - v.priceCheckedAt > 30 * 86400000)) {
+          price.innerHTML += ' <span class="price-stale" title="Price may be out of date">⚠ check</span>';
+        }
         price.style.display = "";
       } else {
         price.innerHTML = "";

@@ -198,6 +198,31 @@
     return null;
   }
 
+  var STALE_DAYS = 30;
+
+  // Amazon refuses automatic price lookups, so those items are checked by hand.
+  function isAmazon(url) {
+    try {
+      var h = new URL(url).hostname.toLowerCase();
+      return /(^|\.)amazon\.[a-z.]+$/.test(h) || /(^|\.)amzn\.[a-z]+$/.test(h) || h === "a.co";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function isStale(it) {
+    return !it.priceCheckedAt || Date.now() - it.priceCheckedAt > STALE_DAYS * 86400000;
+  }
+
+  function safeHref(url) {
+    try {
+      var u = new URL(String(url).trim());
+      return u.protocol === "http:" || u.protocol === "https:" ? u.href : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   var RELAYS = [
     function (u) { return "https://api.allorigins.win/raw?url=" + encodeURIComponent(u); },
     function (u) { return "https://corsproxy.io/?" + encodeURIComponent(u); },
@@ -254,6 +279,7 @@
       });
 
     form.innerHTML =
+      '<div class="admin-variants" data-variants hidden></div>' +
       '<label class="admin-field"><span>Name *</span>' +
       '<input type="text" name="name" required maxlength="120"></label>' +
       '<div class="admin-row">' +
@@ -265,6 +291,7 @@
       '<p class="admin-hint" data-price-note hidden></p>' +
       '<label class="admin-field"><span>Link to buy</span>' +
       '<input type="url" name="link" placeholder="https://…"></label>' +
+      '<a class="owner-btn admin-open-link" data-open-link target="_blank" rel="noopener noreferrer" hidden>Open link ↗</a>' +
       '<label class="admin-field"><span>Image URL</span>' +
       '<input type="url" name="image" placeholder="https://…"></label>' +
       '<img class="admin-preview" alt="" hidden>' +
@@ -287,6 +314,7 @@
       '<p class="admin-error" role="alert" hidden></p>' +
       '<div class="admin-actions">' +
       '<button type="button" class="owner-btn" data-cancel>Cancel</button>' +
+      '<button type="button" class="owner-btn" data-save-next hidden>Save &amp; next color →</button>' +
       '<button type="submit" class="owner-btn owner-btn-primary">Save</button>' +
       "</div>";
 
@@ -332,6 +360,57 @@
     });
     refreshSwatch();
 
+    // Open-link button: lets you look at the store page without leaving the form.
+    var openLink = form.querySelector("[data-open-link]");
+    function syncOpenLink() {
+      var href = safeHref(form.elements.link.value);
+      openLink.hidden = !href;
+      if (href) openLink.href = href;
+    }
+    form.elements.link.addEventListener("input", syncOpenLink);
+    syncOpenLink();
+
+    // Other colors of the same item: jump between them without going back to the page.
+    var siblings = item && item.group
+      ? app().getItems().filter(function (it) {
+          return it.group === item.group;
+        })
+      : [];
+    var saveNextBtn = form.querySelector("[data-save-next]");
+    var startSnapshot = null;
+    function snapshot() {
+      return JSON.stringify([
+        form.elements.name.value, form.elements.price.value, form.elements.link.value,
+        form.elements.image.value, form.elements.color.value, form.elements.group.value,
+        form.elements.fav.checked, swatchPicked ? swatchInput.value : null,
+        Array.prototype.map.call(form.querySelectorAll("input[name=cat]:checked"), function (i) { return i.value; }),
+      ]);
+    }
+    function nextSibling() {
+      var i = siblings.findIndex(function (it) { return it.id === item.id; });
+      return siblings.length > 1 ? siblings[(i + 1) % siblings.length] : null;
+    }
+    if (siblings.length > 1) {
+      var vbox = form.querySelector("[data-variants]");
+      vbox.hidden = false;
+      vbox.appendChild(el("span", "admin-variants-label", "Colors:"));
+      siblings.forEach(function (sib, n) {
+        var chip = el("button", "owner-btn admin-variant-chip", sib.color || "Option " + (n + 1));
+        chip.type = "button";
+        if (sib.id === item.id) {
+          chip.setAttribute("aria-current", "true");
+          chip.disabled = true;
+        }
+        chip.addEventListener("click", function () {
+          if (snapshot() !== startSnapshot && !window.confirm("Discard your unsaved changes to this color?")) return;
+          dlg.close();
+          openItemForm({ item: sib });
+        });
+        vbox.appendChild(chip);
+      });
+      saveNextBtn.hidden = false;
+    }
+
     // Price: stamp when it was checked, and offer a one-click check from the link.
     var priceNote = form.querySelector("[data-price-note]");
     var checkedAt = start.priceCheckedAt || null;
@@ -353,6 +432,12 @@
       var url = form.elements.link.value.trim();
       if (!url) {
         showPriceNote("Add a link first so there is a page to check.");
+        return;
+      }
+      if (isAmazon(url)) {
+        var amz = safeHref(url);
+        if (amz) window.open(amz, "_blank", "noopener,noreferrer");
+        showPriceNote("Amazon doesn't allow automatic checks. The page opened in a new tab — type the price here when you've read it.");
         return;
       }
       checkBtn.disabled = true;
@@ -442,9 +527,19 @@
       dlg.close();
     });
 
+    var goNext = false;
+    saveNextBtn.addEventListener("click", function () {
+      goNext = true;
+      if (form.requestSubmit) form.requestSubmit();
+      else form.dispatchEvent(new Event("submit", { cancelable: true }));
+    });
+    startSnapshot = snapshot();
+
     form.addEventListener("submit", function (e) {
       e.preventDefault();
       errorEl.hidden = true;
+      var wantNext = goNext;
+      goNext = false;
 
       var tags = Array.prototype.map
         .call(form.querySelectorAll('input[name="cat"]:checked'), function (i) {
@@ -488,7 +583,15 @@
         .then(function () {
           dlg.close();
           say(item ? "Saved changes." : "Item added.");
-          return app().reload();
+          return app().reload().then(function () {
+            if (!wantNext || !item) return;
+            var fresh = app().getItems().filter(function (it) {
+              return it.group && it.group === (payload.group || "").trim();
+            });
+            var idx = fresh.findIndex(function (it) { return it.id === item.id; });
+            var nxt = fresh.length > 1 ? fresh[(idx + 1) % fresh.length] : null;
+            if (nxt) openItemForm({ item: nxt });
+          });
         })
         .catch(function (err) {
           errorEl.textContent = err.message;
@@ -589,7 +692,12 @@
   // Re-reads every item's price from its link. Only changes prices it actually
   // finds; items it can't read are left alone.
   function refreshPrices() {
+    var skipped = 0;
     var items = app().getItems().filter(function (it) {
+      if (it.link && isAmazon(it.link)) {
+        skipped++;
+        return false;
+      }
       return it.link;
     });
     if (!items.length) {
@@ -629,13 +737,95 @@
       .then(function () {
         say(
           "Checked " + updates.length + " prices, " + changed + " changed" +
-            (failed ? ", " + failed + " couldn't be read" : "") + "."
+            (failed ? ", " + failed + " couldn't be read" : "") +
+            (skipped ? ", " + skipped + " Amazon items skipped (check those by hand)" : "") + "."
         );
         return app().reload();
       })
       .catch(function (err) {
         say("Price check failed: " + err.message);
       });
+  }
+
+  // Lists items whose prices are old or never checked, oldest first, so they
+  // can be confirmed or corrected quickly.
+  function openPriceReview() {
+    var due = app().getItems().filter(isStale).sort(function (a, b) {
+      return (a.priceCheckedAt || 0) - (b.priceCheckedAt || 0);
+    });
+    var dlg = makeDialog("Prices to review");
+    var wrap = el("div", "admin-form");
+    wrap.appendChild(
+      el("p", "admin-hint",
+        due.length
+          ? due.length + " item" + (due.length === 1 ? "" : "s") + " not checked in " + STALE_DAYS + " days. Open the link, then confirm or fix the price."
+          : "Every price has been checked in the last " + STALE_DAYS + " days.")
+    );
+    var errorEl = el("p", "admin-error");
+    errorEl.hidden = true;
+    wrap.appendChild(errorEl);
+
+    due.forEach(function (it) {
+      var row = el("div", "admin-review-row");
+      row.appendChild(
+        el("span", "admin-review-name", it.name + (it.color ? " (" + it.color + ")" : ""))
+      );
+      row.appendChild(
+        el("span", "admin-review-age", it.priceCheckedAt ? "checked " + ageText(it.priceCheckedAt) : "never checked")
+      );
+      var href = it.link && safeHref(it.link);
+      if (href) {
+        var a = el("a", "owner-btn", "Open link ↗");
+        a.href = href;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        row.appendChild(a);
+      }
+      var input = document.createElement("input");
+      input.type = "number";
+      input.min = "0";
+      input.step = "0.01";
+      input.className = "admin-review-price";
+      input.setAttribute("aria-label", "Price for " + it.name);
+      input.value = it.price !== null && it.price !== undefined ? it.price : "";
+      row.appendChild(input);
+      var ok = el("button", "owner-btn owner-btn-primary", "Price is right");
+      ok.type = "button";
+      ok.addEventListener("click", function () {
+        var v = parseFloat(input.value);
+        var upd = { id: it.id, priceCheckedAt: Date.now() };
+        if (isFinite(v) && v >= 0) upd.price = v;
+        ok.disabled = true;
+        data
+          .updatePrices([upd])
+          .then(function () {
+            row.classList.add("admin-review-done");
+            ok.textContent = "✓ Saved";
+            input.disabled = true;
+          })
+          .catch(function (err) {
+            errorEl.textContent = err.message;
+            errorEl.hidden = false;
+            ok.disabled = false;
+          });
+      });
+      row.appendChild(ok);
+      wrap.appendChild(row);
+    });
+
+    var actions = el("div", "admin-actions");
+    var close = el("button", "owner-btn", "Close");
+    close.type = "button";
+    close.addEventListener("click", function () {
+      dlg.close();
+    });
+    actions.appendChild(close);
+    wrap.appendChild(actions);
+    dlg.addEventListener("close", function () {
+      app().reload();
+    });
+    dlg.appendChild(wrap);
+    dlg.showModal();
   }
 
   /* ---------- Categories editor ---------- */
@@ -1044,6 +1234,11 @@
       importBtn.addEventListener("click", importFromSheet);
       bar.appendChild(importBtn);
     }
+
+    var reviewBtn = el("button", "owner-btn", "Prices to review");
+    reviewBtn.type = "button";
+    reviewBtn.addEventListener("click", openPriceReview);
+    bar.appendChild(reviewBtn);
 
     var priceBtn = el("button", "owner-btn", "Refresh prices");
     priceBtn.type = "button";
