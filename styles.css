@@ -755,11 +755,23 @@ body {
   border-radius: 6px;
 }
 
+.admin-dialog {
+  overflow-y: auto;
+}
+
+/* Keep Cancel / Save in view while scrolling a long form. */
 .admin-actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.5rem;
-  margin-top: 0.3rem;
+  margin: 0.3rem -1.5rem -1.5rem;
+  padding: 0.75rem 1.5rem;
+  position: sticky;
+  bottom: -1.5rem;
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  z-index: 2;
 }
 
 .admin-actions .owner-btn {
