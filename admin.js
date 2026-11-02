@@ -286,6 +286,7 @@
       '<label class="admin-field"><span>Price ($)</span>' +
       '<input type="number" name="price" min="0" step="0.01" inputmode="decimal"></label>' +
       '<button type="button" class="owner-btn admin-check-price" data-check-price>Check price</button>' +
+      '<button type="button" class="owner-btn admin-check-price" data-confirm-price title="The price shown is still correct">Price is right ✓</button>' +
       '<label class="admin-check admin-check-fav"><input type="checkbox" name="fav"> <span>Favorite</span></label>' +
       "</div>" +
       '<p class="admin-hint" data-price-note hidden></p>' +
@@ -427,6 +428,33 @@
       checkedAt = Date.now();
       showPriceNote();
     });
+    // One click to say "the price above is still accurate": stamps today's date
+    // (and saves it right away for an existing item) without retyping the price.
+    var confirmBtn = form.querySelector("[data-confirm-price]");
+    confirmBtn.addEventListener("click", function () {
+      checkedAt = Date.now();
+      var v = parseFloat(form.elements.price.value);
+      if (!item) {
+        showPriceNote("Confirmed today. It will be saved with the item.");
+        return;
+      }
+      confirmBtn.disabled = true;
+      var upd = { id: item.id, priceCheckedAt: checkedAt };
+      if (isFinite(v) && v >= 0) upd.price = v;
+      data
+        .updatePrices([upd])
+        .then(function () {
+          showPriceNote("Confirmed today and saved.");
+          return app().reload();
+        })
+        .catch(function (err) {
+          showPriceNote("Couldn't save: " + err.message);
+        })
+        .then(function () {
+          confirmBtn.disabled = false;
+        });
+    });
+
     var checkBtn = form.querySelector("[data-check-price]");
     checkBtn.addEventListener("click", function () {
       var url = form.elements.link.value.trim();
