@@ -147,7 +147,7 @@ body {
 
 .control-label {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-soft);
@@ -275,7 +275,7 @@ body {
 
 .active-filters .tag {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -432,7 +432,7 @@ body {
   border: 1px solid var(--brass);
   color: var(--ink);
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.03em;
   padding: 0.2rem 0.55rem;
@@ -454,7 +454,7 @@ body {
 .variant-group-label {
   display: block;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -557,7 +557,7 @@ body {
 
 .admin-bar-label {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--brass-deep);
@@ -575,7 +575,7 @@ body {
 .admin-who {
   flex-basis: 100%;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: var(--ink-soft);
   word-break: break-all;
   user-select: all;
@@ -661,7 +661,7 @@ body {
 .admin-field > span,
 .admin-fieldset legend {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-soft);
@@ -818,7 +818,7 @@ body {
   min-width: 4.2rem;
   text-align: right;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: var(--ink-soft);
 }
 
@@ -860,7 +860,7 @@ body {
 }
 
 .admin-color-name small {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--ink-soft);
 }
 
@@ -940,3 +940,20 @@ body {
 .admin-review-price { width: 6rem; }
 .admin-review-done { opacity: 0.55; }
 .owner-btn { text-decoration: none; }
+
+/* Gift claiming */
+.item-claim { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
+.claim-btn {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.claim-btn:hover:not(:disabled) { border-color: var(--brass); }
+.claim-btn:disabled { opacity: 0.6; cursor: default; }
+.claim-badge { font-size: 0.8rem; color: var(--ink-soft); }
+.claim-error { font-size: 0.8rem; color: var(--ink-soft); flex-basis: 100%; }
+.is-claimed .item-image { opacity: 0.55; }

@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Which signed-in account owns which list. Add a line for each new list.
+    function isOwnerOf(listId) {
+      return request.auth != null && (
+        (listId == 'dan' && request.auth.uid == 'M698pTK7xCaykXqAtwv3zpqmarr2') ||
+        (listId == 'mic' && request.auth.uid == '5iKLfsFRnOfSRP3SBCIz3JwSsLZ2')
+      );
+    }
+
+    match /lists/{listId} {
+      allow read: if true;
+      allow write: if isOwnerOf(listId);
+
+      match /items/{itemId} {
+        allow read: if true;
+
+        allow create, update: if isOwnerOf(listId)
+          && request.resource.data.name is string
+          && request.resource.data.name.size() >= 1
+          && request.resource.data.name.size() <= 1000;
+
+        // Visitors may only flip the "I'm getting this" marker.
+        allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claimed'])
+          && request.resource.data.claimed is bool;
+
+        allow delete: if isOwnerOf(listId);
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
