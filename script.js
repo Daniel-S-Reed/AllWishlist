@@ -162,6 +162,7 @@
   );
 
   var favOnly = false;
+  var staleOnly = false; // owner-only: show just items whose price needs checking
   var sortMode = "alpha"; // 'alpha' | 'price'
   var sortDir = "asc"; // 'asc' | 'desc'
 
@@ -255,6 +256,13 @@
       ? window.WISHLIST_CONFIG.imageProxy
       : "https://wsrv.nl/?url=";
 
+  // Pictures are first requested at card size through the relay (much smaller
+  // than store originals). If that fails we fall back to the original address.
+  // Set `imageResize: false` in firebase-config.js to always load originals.
+  var IMAGE_RESIZE =
+    !!IMAGE_PROXY &&
+    !(window.WISHLIST_CONFIG && window.WISHLIST_CONFIG.imageResize === false);
+
   function showImageMissing(wrap, img, url) {
     img.hidden = true;
 
@@ -279,7 +287,7 @@
     if (box) box.remove();
 
     img.hidden = false;
-    delete img.dataset.relayed;
+    delete img.dataset.stage;
     delete img.dataset.original;
 
     if (!url) {
@@ -288,7 +296,14 @@
       return;
     }
 
-    img.src = url;
+    img.dataset.original = url;
+    if (IMAGE_RESIZE && /^https?:\/\//i.test(url)) {
+      img.dataset.stage = "sized";
+      img.src = IMAGE_PROXY + encodeURIComponent(url) + "&w=640&we&output=webp&q=80";
+    } else {
+      img.dataset.stage = "direct";
+      img.src = url;
+    }
   }
 
   // 24 -> "24", 24.5 -> "24.50"
@@ -305,8 +320,51 @@
     return Math.min.apply(null, prices);
   }
 
+  // Saved copy of the list in this browser, so the page can show instantly and
+  // visitors who come back within a couple of minutes don't re-read the database.
+  var CACHE_KEY = "wishlist-items-" + data.listId;
+  var CACHE_FRESH_MS = 2 * 60 * 1000;
+
+  function readCache() {
+    try {
+      var c = JSON.parse(window.localStorage.getItem(CACHE_KEY) || "null");
+      return c && Array.isArray(c.items) ? c : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function writeCache(items) {
+    try {
+      window.localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), items: items }));
+    } catch (e) {}
+  }
+
   function fetchItems() {
-    return data.loadItems();
+    return data.loadItems().then(function (items) {
+      writeCache(items);
+      return items;
+    });
+  }
+
+  /* ---------- Owner editor (loaded only when needed) ---------- */
+
+  var adminPromise = null;
+  function loadAdmin() {
+    if (window.WishlistAdmin) return Promise.resolve();
+    if (!adminPromise) {
+      adminPromise = new Promise(function (resolve, reject) {
+        var s = document.createElement("script");
+        s.src = "admin.js";
+        s.onload = resolve;
+        s.onerror = function () {
+          adminPromise = null;
+          reject(new Error("Couldn't load the editor."));
+        };
+        document.body.appendChild(s);
+      });
+    }
+    return adminPromise;
   }
 
   /* ---------- Filtering / sorting ---------- */
@@ -348,7 +406,14 @@
         return p <= 0 || (p >= priceRange.min && p <= priceRange.max);
       });
 
-    return categoryOk && clothingOk && favOk && priceOk;
+    // Needs checking (owner only): any variant whose price is over 30 days old.
+    var staleOk =
+      !(staleOnly && ownerMode) ||
+      card.variants.some(function (v) {
+        return !v.priceCheckedAt || Date.now() - v.priceCheckedAt > 30 * 86400000;
+      });
+
+    return categoryOk && clothingOk && favOk && priceOk && staleOk;
   }
 
   function getMatched() {
@@ -758,6 +823,7 @@
     img.className = "item-image";
     img.alt = "";
     img.loading = "lazy";
+    img.decoding = "async";
     // Don't send this site's address to the image host. Some stores (LEGO, for one)
     // refuse images when the request says it came from another website.
     img.referrerPolicy = "no-referrer";
@@ -768,17 +834,22 @@
     // (some stores refuse images shown on other sites). If that fails too,
     // show a clear "not available" box instead of an empty gap.
     img.addEventListener("error", function () {
-      var failed = img.getAttribute("src") || "";
+      var original = img.dataset.original || img.getAttribute("src") || "";
 
-      if (IMAGE_PROXY && !img.dataset.relayed && /^https?:\/\//i.test(failed)) {
-        img.dataset.relayed = "1";
-        img.dataset.original = failed;
-        img.src = IMAGE_PROXY + encodeURIComponent(failed);
+      if (img.dataset.stage === "sized") {
+        img.dataset.stage = "direct";
+        img.src = original;
         return;
       }
 
-      console.warn("Image failed to load:", img.dataset.original || failed);
-      showImageMissing(imgWrap, img, img.dataset.original || failed);
+      if (IMAGE_PROXY && img.dataset.stage !== "relayed" && /^https?:\/\//i.test(original)) {
+        img.dataset.stage = "relayed";
+        img.src = IMAGE_PROXY + encodeURIComponent(original);
+        return;
+      }
+
+      console.warn("Image failed to load:", original);
+      showImageMissing(imgWrap, img, original);
     });
 
     if (card.variants.length > 1) {
@@ -1067,6 +1138,7 @@
 
     rawItems = items;
     cards = buildCards(rawItems);
+    document.dispatchEvent(new Event("wishlist:items"));
 
     var nums = rawItems
       .map(priceValue)
@@ -1122,6 +1194,13 @@
     getItems: function () {
       return rawItems;
     },
+    isStaleOnly: function () {
+      return staleOnly;
+    },
+    setStaleOnly: function (on) {
+      staleOnly = !!on;
+      render();
+    },
     getCategories: function () {
       return categoryFilters;
     },
@@ -1142,14 +1221,38 @@
   // Show or hide the owner controls as the sign-in state changes.
   data.onAuth(function (owner) {
     ownerMode = owner;
+    if (owner) loadAdmin().then(render, function () {});
     render();
   });
+
+  // The editor script is only downloaded when the owner asks to sign in
+  // (or is already signed in), so ordinary visitors never fetch it.
+  var loginLinkEl = document.getElementById("owner-login");
+  if (loginLinkEl) {
+    loginLinkEl.addEventListener("click", function () {
+      if (window.WishlistAdmin) return; // the editor handles it itself
+      loadAdmin().then(function () {
+        if (window.WishlistAdmin && window.WishlistAdmin.openLogin) window.WishlistAdmin.openLogin();
+      });
+    });
+  }
 
   /* ---------- Init ---------- */
 
   render();
 
-  reload();
+  // Show the saved copy straight away, then refresh from the database unless
+  // the copy is only moments old.
+  (function start() {
+    var cached = readCache();
+    if (cached) {
+      applyItems(cached.items);
+      isLoading = false;
+      render();
+      if (Date.now() - cached.t < CACHE_FRESH_MS) return;
+    }
+    reload();
+  })();
 
   // Saved categories and colors for this list (if the owner has set any).
   data

@@ -1263,6 +1263,24 @@
       bar.appendChild(importBtn);
     }
 
+    // Filter the page down to cards whose price needs checking.
+    var staleBtn = el("button", "owner-btn", "Needs checking");
+    staleBtn.type = "button";
+    function updateStaleBtn() {
+      var n = app().getItems().filter(isStale).length;
+      var on = app().isStaleOnly();
+      staleBtn.textContent = (on ? "Showing: " : "") + "Needs checking (" + n + ")";
+      staleBtn.setAttribute("aria-pressed", String(on));
+      staleBtn.classList.toggle("owner-btn-primary", on);
+    }
+    staleBtn.addEventListener("click", function () {
+      app().setStaleOnly(!app().isStaleOnly());
+      updateStaleBtn();
+    });
+    document.addEventListener("wishlist:items", updateStaleBtn);
+    updateStaleBtn();
+    bar.appendChild(staleBtn);
+
     var reviewBtn = el("button", "owner-btn", "Prices to review");
     reviewBtn.type = "button";
     reviewBtn.addEventListener("click", openPriceReview);
@@ -1300,6 +1318,7 @@
 
     bar.hidden = !owner;
     if (owner) buildBar();
+    else if (app().setStaleOnly) app().setStaleOnly(false);
   }
 
   window.WishlistAdmin = {
@@ -1307,6 +1326,7 @@
     addColor: addColor,
     deleteItem: deleteItem,
     addItem: addItem,
+    openLogin: openLogin,
   };
 
   if (data.configured) {
