@@ -12,7 +12,7 @@ A plain HTML/CSS/JavaScript wish list, hosted on GitHub Pages, with items stored
 | File | What it does |
 | --- | --- |
 | `index.html`, `mic.html` | The two pages. `<body data-list="…">` picks the list. |
-| `script.js` | The public page: filters, sorting, cards, color swatches, "I'm getting this". Also loads `admin.js` when the owner signs in. |
+| `script.js` | The public page: filters, sorting, cards and color swatches. Also loads `admin.js` when the owner signs in. |
 | `admin.js` | The owner editor: add/edit items, categories, colors, price checking and review. Only downloaded for the owner. |
 | `firebase-data.js` | All database and sign-in code. Everything else goes through `window.WishlistData`. |
 | `firebase-config.js` | Firebase keys (public by design), each list's title, owner email and starting categories. |
@@ -22,14 +22,13 @@ A plain HTML/CSS/JavaScript wish list, hosted on GitHub Pages, with items stored
 
 ## Data
 
-Items live at `lists/{listId}/items/{itemId}` with: `name`, `image`, `link`, `price`, `tags[]`, `clothingTypes[]`, `group`, `color`, `swatch`, `priceCheckedAt`, `claimed`.
+Items live at `lists/{listId}/items/{itemId}` with: `name`, `image`, `link`, `price`, `tags[]`, `clothingTypes[]`, `group`, `color`, `swatch`, `priceCheckedAt`.
 Items with the same `group` show as one card with color swatches. Per-list categories and colors are stored on `lists/{listId}`.
 
 ## Using it
 
 - **Owner login** (bottom of the page) → enter that list's password. The owner bar appears.
 - **Prices:** *Check price* reads a price from the item's link (not possible on Amazon). *Refresh prices* does it for every linked item. *Needs checking* filters to prices older than 30 days; *Prices to review* lets you confirm them quickly.
-- **Gift claims:** visitors can mark "I'm getting this". Claims are hidden from the owner until they press *Show claimed gifts*.
 
 ## Adding another list
 
@@ -60,5 +59,4 @@ The tests run the real `script.js` and `admin.js` in a simulated page with a fak
 ## Good to know
 
 - The Firebase keys in `firebase-config.js` are meant to be public. Never put a service-account key or other secret in this repo.
-- Anyone can mark an item as claimed (that is the point), so treat the claim marker as a convenience, not a lock.
 - Price checking uses free public relay sites, so it can fail or be slow. Prices you type in always win.
