@@ -693,30 +693,6 @@
       });
   }
 
-  function importFromSheet() {
-    var existing = app().getItems().length;
-    var message =
-      "Copy every row from your old Google Sheet into this list?\n\n" +
-      (existing > 0
-        ? "This list already has " + existing + " items. Importing again will create duplicates.\n\n"
-        : "") +
-      "Only do this once.";
-
-    if (!window.confirm(message)) return;
-
-    say("Importing…");
-
-    data
-      .importFromSheet()
-      .then(function (count) {
-        say("Imported " + count + " items.");
-        return app().reload();
-      })
-      .catch(function (err) {
-        say("Import failed: " + err.message);
-      });
-  }
-
   // Re-reads every item's price from its link. Only changes prices it actually
   // finds; items it can't read are left alone.
   function refreshPrices() {
@@ -1255,13 +1231,6 @@
     colorBtn.type = "button";
     colorBtn.addEventListener("click", openColors);
     bar.appendChild(colorBtn);
-
-    if (data.list.legacySheetId && !String(data.list.legacySheetId).startsWith("PASTE")) {
-      var importBtn = el("button", "owner-btn", "Import from Google Sheet");
-      importBtn.type = "button";
-      importBtn.addEventListener("click", importFromSheet);
-      bar.appendChild(importBtn);
-    }
 
     // Filter the page down to cards whose price needs checking.
     var staleBtn = el("button", "owner-btn", "Needs checking");

@@ -1,0 +1,11 @@
+{
+  "name": "allwishlist",
+  "private": true,
+  "description": "Wish list site (plain HTML/CSS/JS + Firebase). The package only exists to run the tests.",
+  "scripts": {
+    "test": "node tests/run.js"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.3"
+  }
+}
