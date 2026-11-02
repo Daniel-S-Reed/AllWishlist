@@ -6,6 +6,12 @@
   <meta name="theme-color" content="#0b0f14" />
   <title>Micah's Wish List</title>
   <meta name="description" content="Browse the wish list by category or price, then follow a card through to buy." />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Micah's Wish List" />
+  <meta property="og:description" content="Gift ideas and things Micah would like — browse by category or price." />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Micah's Wish List" />
+  <meta name="twitter:description" content="Gift ideas and things Micah would like — browse by category or price." />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23ff7a1a'/%3E%3Ctext x='12' y='17' font-size='13' text-anchor='middle' fill='%230b0f14' font-family='Georgia,serif'%3EW%3C/text%3E%3C/svg%3E" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -56,6 +62,7 @@
         <span class="control-label">Sort by</span>
         <div class="chip-row">
           <button type="button" class="chip active" id="sort-alpha" aria-pressed="true">Name (A&ndash;Z)</button>
+          <button type="button" class="chip" id="sort-fav" aria-pressed="false" title="Favorites first, then A&ndash;Z">Most wanted</button>
           <button type="button" class="chip" id="sort-price" aria-pressed="false">Price <span class="sort-dir" id="sort-price-dir" aria-hidden="true"></span></button>
         </div>
       </div>

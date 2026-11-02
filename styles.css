@@ -147,7 +147,7 @@ body {
 
 .control-label {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-soft);
@@ -275,7 +275,7 @@ body {
 
 .active-filters .tag {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -432,7 +432,7 @@ body {
   border: 1px solid var(--brass);
   color: var(--ink);
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.03em;
   padding: 0.2rem 0.55rem;
@@ -454,7 +454,7 @@ body {
 .variant-group-label {
   display: block;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -557,7 +557,7 @@ body {
 
 .admin-bar-label {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--brass-deep);
@@ -575,7 +575,7 @@ body {
 .admin-who {
   flex-basis: 100%;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: var(--ink-soft);
   word-break: break-all;
   user-select: all;
@@ -661,7 +661,7 @@ body {
 .admin-field > span,
 .admin-fieldset legend {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-soft);
@@ -818,7 +818,7 @@ body {
   min-width: 4.2rem;
   text-align: right;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: var(--ink-soft);
 }
 
@@ -860,7 +860,7 @@ body {
 }
 
 .admin-color-name small {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--ink-soft);
 }
 

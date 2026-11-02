@@ -163,7 +163,7 @@
 
   var favOnly = false;
   var staleOnly = false; // owner-only: show just items whose price needs checking
-  var sortMode = "alpha"; // 'alpha' | 'price'
+  var sortMode = "alpha"; // 'alpha' | 'price' | 'fav'
   var sortDir = "asc"; // 'asc' | 'desc'
 
   var priceBounds = null; // { min, max }
@@ -179,6 +179,7 @@
     favToggle: document.getElementById("fav-toggle"),
     priceContainer: document.getElementById("price-container"),
     sortAlpha: document.getElementById("sort-alpha"),
+    sortFav: document.getElementById("sort-fav"),
     sortPrice: document.getElementById("sort-price"),
     sortPriceDir: document.getElementById("sort-price-dir"),
     activeFilters: document.getElementById("active-filters"),
@@ -427,13 +428,19 @@
       sorted.sort(function (a, b) {
         return a.name.localeCompare(b.name);
       });
+    } else if (sortMode === "fav") {
+      sorted.sort(function (a, b) {
+        var fa = a.tags.indexOf("Fav") !== -1 ? 0 : 1;
+        var fb = b.tags.indexOf("Fav") !== -1 ? 0 : 1;
+        return fa - fb || a.name.localeCompare(b.name);
+      });
     } else {
       sorted.sort(function (a, b) {
         return cardMinPrice(a) - cardMinPrice(b);
       });
     }
 
-    if (sortDir === "desc") sorted.reverse();
+    if (sortDir === "desc" && sortMode !== "fav") sorted.reverse();
 
     return sorted;
   }
@@ -635,6 +642,11 @@
 
     els.sortAlpha.classList.toggle("active", alphaActive);
     els.sortAlpha.setAttribute("aria-pressed", String(alphaActive));
+
+    if (els.sortFav) {
+      els.sortFav.classList.toggle("active", sortMode === "fav");
+      els.sortFav.setAttribute("aria-pressed", String(sortMode === "fav"));
+    }
 
     var priceActive = sortMode === "price";
 
@@ -1103,6 +1115,12 @@
   els.sortAlpha.addEventListener("click", function () {
     onSortClick("alpha");
   });
+
+  if (els.sortFav) {
+    els.sortFav.addEventListener("click", function () {
+      onSortClick("fav");
+    });
+  }
 
   els.sortPrice.addEventListener("click", function () {
     onSortClick("price");
