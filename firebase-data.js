@@ -17,7 +17,6 @@ import {
   getDocs,
   addDoc,
   setDoc,
-  updateDoc,
   deleteDoc,
   doc,
   writeBatch,
@@ -139,7 +138,6 @@ async function loadItems() {
       color: data.color || null,
       swatch: data.swatch || null,
       priceCheckedAt: data.priceCheckedAt || null,
-      claimed: data.claimed === true,
     };
   });
 }
@@ -197,19 +195,6 @@ async function saveItem(id, data) {
     const ref = await addDoc(itemsCol(), clean);
     return ref.id;
   } catch (err) {
-    throw new Error(friendlyError(err));
-  }
-}
-
-// Anyone may mark an item as "I'm getting this" (or undo it). The security
-// rules only let visitors change this one field.
-async function setClaimed(id, claimed) {
-  try {
-    await updateDoc(doc(db, "lists", listId, "items", id), { claimed: !!claimed });
-  } catch (err) {
-    if (err && err.code === "permission-denied") {
-      throw new Error("Claiming isn't switched on yet (the site owner needs to publish the updated rules).");
-    }
     throw new Error(friendlyError(err));
   }
 }
@@ -413,7 +398,6 @@ window.WishlistData = {
   saveSettings,
   saveItem,
   updatePrices,
-  setClaimed,
   deleteItem,
   signIn,
   signOut,

@@ -22,10 +22,6 @@ service cloud.firestore {
           && request.resource.data.name.size() >= 1
           && request.resource.data.name.size() <= 1000;
 
-        // Visitors may only flip the "I'm getting this" marker.
-        allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claimed'])
-          && request.resource.data.claimed is bool;
-
         allow delete: if isOwnerOf(listId);
       }
     }

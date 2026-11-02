@@ -940,20 +940,3 @@ body {
 .admin-review-price { width: 6rem; }
 .admin-review-done { opacity: 0.55; }
 .owner-btn { text-decoration: none; }
-
-/* Gift claiming */
-.item-claim { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
-.claim-btn {
-  background: transparent;
-  color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 0.35rem 0.8rem;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-.claim-btn:hover:not(:disabled) { border-color: var(--brass); }
-.claim-btn:disabled { opacity: 0.6; cursor: default; }
-.claim-badge { font-size: 0.8rem; color: var(--ink-soft); }
-.claim-error { font-size: 0.8rem; color: var(--ink-soft); flex-basis: 100%; }
-.is-claimed .item-image { opacity: 0.55; }

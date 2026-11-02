@@ -1281,20 +1281,6 @@
     updateStaleBtn();
     bar.appendChild(staleBtn);
 
-    // Gift claims are hidden from the owner by default so presents stay a surprise.
-    var claimBtn = el("button", "owner-btn", "Show claimed gifts");
-    claimBtn.type = "button";
-    claimBtn.setAttribute("aria-pressed", "false");
-    claimBtn.title = "Claims are hidden so gifts stay a surprise";
-    claimBtn.addEventListener("click", function () {
-      var on = !app().isRevealClaimed();
-      if (on && !window.confirm("Reveal which gifts people have claimed? This can spoil surprises.")) return;
-      app().setRevealClaimed(on);
-      claimBtn.textContent = on ? "Hide claimed gifts" : "Show claimed gifts";
-      claimBtn.setAttribute("aria-pressed", String(on));
-    });
-    bar.appendChild(claimBtn);
-
     var reviewBtn = el("button", "owner-btn", "Prices to review");
     reviewBtn.type = "button";
     reviewBtn.addEventListener("click", openPriceReview);
@@ -1332,10 +1318,7 @@
 
     bar.hidden = !owner;
     if (owner) buildBar();
-    else if (app().setStaleOnly) {
-      app().setStaleOnly(false);
-      app().setRevealClaimed(false);
-    }
+    else if (app().setStaleOnly) app().setStaleOnly(false);
   }
 
   window.WishlistAdmin = {

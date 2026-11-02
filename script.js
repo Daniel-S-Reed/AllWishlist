@@ -162,7 +162,6 @@
   );
 
   var favOnly = false;
-  var revealClaimed = false; // owner-only: false keeps gift claims a surprise
   var staleOnly = false; // owner-only: show just items whose price needs checking
   var sortMode = "alpha"; // 'alpha' | 'price' | 'fav'
   var sortDir = "asc"; // 'asc' | 'desc'
@@ -950,67 +949,6 @@
     nolink.textContent = "No link yet";
     article.appendChild(nolink);
 
-    // "I'm getting this" marker so two people don't buy the same gift.
-    // The owner doesn't see claims unless they choose to reveal them.
-    var claimRow = document.createElement("div");
-    claimRow.className = "item-claim";
-    article.appendChild(claimRow);
-
-    function renderClaim() {
-      var v = activeVariant();
-      claimRow.innerHTML = "";
-
-      if (ownerMode && !revealClaimed) {
-        claimRow.style.display = "none";
-        article.classList.remove("is-claimed");
-        return;
-      }
-      claimRow.style.display = "";
-
-      var claimed = v.claimed === true;
-      article.classList.toggle("is-claimed", claimed);
-
-      if (claimed) {
-        var badge = document.createElement("span");
-        badge.className = "claim-badge";
-        badge.textContent = "Claimed \u2014 someone is getting this";
-        claimRow.appendChild(badge);
-      }
-      if (ownerMode || !data.setClaimed) return;
-
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "claim-btn";
-      btn.textContent = claimed ? "Undo" : "I\u2019m getting this";
-      btn.setAttribute(
-        "aria-label",
-        (claimed ? "Undo claim on " : "Mark as getting ") + card.name + (v.color ? ", " + v.color : "")
-      );
-      btn.addEventListener("click", function () {
-        var target = !claimed;
-        btn.disabled = true;
-        data
-          .setClaimed(v.id, target)
-          .then(function () {
-            v.claimed = target;
-            rawItems.forEach(function (it) {
-              if (it.id === v.id) it.claimed = target;
-            });
-            writeCache(rawItems);
-            renderClaim();
-          })
-          .catch(function (err) {
-            btn.disabled = false;
-            var msg = document.createElement("span");
-            msg.className = "claim-error";
-            msg.setAttribute("role", "alert");
-            msg.textContent = err.message;
-            claimRow.appendChild(msg);
-          });
-      });
-      claimRow.appendChild(btn);
-    }
-
     function updateVariantDisplay() {
       var v = activeVariant();
       var priceText = v.price !== null && v.price !== "" ? "$" + formatPrice(v.price) : null;
@@ -1053,7 +991,6 @@
         nolink.style.display = "";
       }
 
-      renderClaim();
       if (refreshTools) refreshTools();
     }
 
@@ -1274,13 +1211,6 @@
     reload: reload,
     getItems: function () {
       return rawItems;
-    },
-    isRevealClaimed: function () {
-      return revealClaimed;
-    },
-    setRevealClaimed: function (on) {
-      revealClaimed = !!on;
-      render();
     },
     isStaleOnly: function () {
       return staleOnly;
