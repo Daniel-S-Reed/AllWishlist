@@ -13,7 +13,7 @@ A plain HTML/CSS/JavaScript wish list, hosted on GitHub Pages, with items stored
 | --- | --- |
 | `index.html`, `mic.html` | The two pages. `<body data-list="…">` picks the list. |
 | `script.js` | The public page: filters, sorting, cards and color swatches. Also loads `admin.js` when the owner signs in. |
-| `admin.js` | The owner editor: add/edit items, categories, colors, price checking and review. Only downloaded for the owner. |
+| `admin.js` | The owner editor: add/edit items, categories, clothing types, colors, price checking and review. Only downloaded for the owner. |
 | `firebase-data.js` | All database and sign-in code. Everything else goes through `window.WishlistData`. |
 | `firebase-config.js` | Firebase keys (public by design), each list's title, owner email and starting categories. |
 | `firestore.rules` | The security rules. **These are what actually protect the data.** |

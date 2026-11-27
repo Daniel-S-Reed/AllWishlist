@@ -836,7 +836,7 @@
 
   // "Board Games" -> "BoardGames". Existing categories keep their stored value
   // when renamed, so items never lose their category.
-  function categoryValueFromLabel(label, taken) {
+  function categoryValueFromLabel(label, taken, fallback) {
     var words = String(label)
       .replace(/[^A-Za-z0-9 ]+/g, " ")
       .trim()
@@ -848,7 +848,7 @@
         .map(function (w) {
           return w.charAt(0).toUpperCase() + w.slice(1);
         })
-        .join("") || "Category";
+        .join("") || fallback || "Category";
 
     var value = base;
     var n = 2;
@@ -859,35 +859,38 @@
     return value;
   }
 
-  function openCategories() {
-    var rows = app()
-      .getCategories()
+  // Shared editor for the category buttons and the clothing-type buttons.
+  // opts: { title, noun, plural, key, getRows(), count(item, value), hint, fallback }
+  function openListEditor(opts) {
+    var rows = opts
+      .getRows()
       .map(function (c) {
         return { value: c.value, label: c.label };
       });
     var items = app().getItems();
 
-    var dlg = makeDialog("Categories");
+    var dlg = makeDialog(opts.title);
     var form = el("form", "admin-form");
 
     form.innerHTML =
-      '<p class="admin-hint">These are the filter buttons visitors see. Renaming a category keeps its items in it. ' +
-      "A category named Clothes also turns on the clothing-type filters.</p>" +
+      '<p class="admin-hint"></p>' +
       '<div class="admin-cat-list"></div>' +
-      '<div><button type="button" class="owner-btn" data-add>+ Add category</button></div>' +
+      '<div><button type="button" class="owner-btn" data-add></button></div>' +
       '<p class="admin-error" role="alert" hidden></p>' +
       '<div class="admin-actions">' +
       '<button type="button" class="owner-btn" data-cancel>Cancel</button>' +
       '<button type="submit" class="owner-btn owner-btn-primary">Save</button>' +
       "</div>";
 
+    form.querySelector(".admin-hint").textContent = opts.hint;
+    form.querySelector("[data-add]").textContent = "+ Add " + opts.noun;
     var listEl = form.querySelector(".admin-cat-list");
     var errorEl = form.querySelector(".admin-error");
     var submit = form.querySelector('[type="submit"]');
 
     function countFor(value) {
       return items.filter(function (it) {
-        return it.tags.indexOf(value) !== -1;
+        return opts.count(it, value);
       }).length;
     }
 
@@ -907,7 +910,7 @@
       listEl.innerHTML = "";
 
       if (rows.length === 0) {
-        listEl.appendChild(el("p", "admin-hint", "No categories yet. Add one below."));
+        listEl.appendChild(el("p", "admin-hint", "No " + opts.plural + " yet. Add one below."));
       }
 
       rows.forEach(function (row, i) {
@@ -917,7 +920,7 @@
         up.type = "button";
         up.disabled = i === 0;
         up.setAttribute("data-up", "");
-        up.setAttribute("aria-label", "Move " + (row.label || "category") + " up");
+        up.setAttribute("aria-label", "Move " + (row.label || opts.noun) + " up");
         up.addEventListener("click", function () {
           move(i, -1, "data-up");
         });
@@ -926,7 +929,7 @@
         down.type = "button";
         down.disabled = i === rows.length - 1;
         down.setAttribute("data-down", "");
-        down.setAttribute("aria-label", "Move " + (row.label || "category") + " down");
+        down.setAttribute("aria-label", "Move " + (row.label || opts.noun) + " down");
         down.addEventListener("click", function () {
           move(i, 1, "data-down");
         });
@@ -935,8 +938,8 @@
         input.type = "text";
         input.value = row.label;
         input.maxLength = 40;
-        input.placeholder = "Category name";
-        input.setAttribute("aria-label", "Category name");
+        input.placeholder = opts.noun.charAt(0).toUpperCase() + opts.noun.slice(1) + " name";
+        input.setAttribute("aria-label", opts.noun + " name");
         input.addEventListener("input", function () {
           row.label = input.value;
         });
@@ -946,7 +949,7 @@
 
         var remove = el("button", "owner-btn owner-btn-danger", "Remove");
         remove.type = "button";
-        remove.setAttribute("aria-label", "Remove " + (row.label || "category"));
+        remove.setAttribute("aria-label", "Remove " + (row.label || opts.noun));
         remove.addEventListener("click", function () {
           if (
             n > 0 &&
@@ -1000,7 +1003,7 @@
       for (var k = 0; k < clean.length; k++) {
         var key = clean[k].label.toLowerCase();
         if (seen[key]) {
-          errorEl.textContent = 'Two categories are both named "' + clean[k].label + '".';
+          errorEl.textContent = "Two " + opts.plural + ' are both named "' + clean[k].label + '".';
           errorEl.hidden = false;
           return;
         }
@@ -1015,20 +1018,23 @@
         .filter(Boolean);
       clean.forEach(function (r) {
         if (!r.value) {
-          r.value = categoryValueFromLabel(r.label, taken);
+          r.value = categoryValueFromLabel(r.label, taken, opts.fallback);
           taken.push(r.value);
         }
       });
+
+      var payload = {};
+      payload[opts.key] = clean;
 
       submit.disabled = true;
       submit.textContent = "Saving…";
 
       data
-        .saveSettings({ categories: clean })
+        .saveSettings(payload)
         .then(function (saved) {
           app().applySettings(Object.assign({}, app().getSettings(), saved));
           dlg.close();
-          say("Categories saved.");
+          say(opts.title + " saved.");
         })
         .catch(function (err) {
           errorEl.textContent = err.message;
@@ -1041,6 +1047,44 @@
     dlg.appendChild(form);
     renderRows();
     dlg.showModal();
+  }
+
+  function openCategories() {
+    openListEditor({
+      title: "Categories",
+      noun: "category",
+      plural: "categories",
+      key: "categories",
+      fallback: "Category",
+      getRows: function () {
+        return app().getCategories();
+      },
+      count: function (it, value) {
+        return it.tags.indexOf(value) !== -1;
+      },
+      hint:
+        "These are the filter buttons visitors see. Renaming a category keeps its items in it. " +
+        "A category named Clothes also turns on the clothing-type filters.",
+    });
+  }
+
+  function openClothingTypes() {
+    openListEditor({
+      title: "Clothing types",
+      noun: "type",
+      plural: "types",
+      key: "clothingTypes",
+      fallback: "Type",
+      getRows: function () {
+        return app().getClothingTypes();
+      },
+      count: function (it, value) {
+        return it.clothingTypes.indexOf(value) !== -1;
+      },
+      hint:
+        "These are the filter buttons shown when Clothes is selected, and the checkboxes when you edit a clothing item. " +
+        "Renaming a type keeps its items in it. After adding a type, edit the items that belong to it.",
+    });
   }
 
   /* ---------- Colors editor ---------- */
@@ -1226,6 +1270,11 @@
     catBtn.type = "button";
     catBtn.addEventListener("click", openCategories);
     bar.appendChild(catBtn);
+
+    var clothesBtn = el("button", "owner-btn", "Clothing types");
+    clothesBtn.type = "button";
+    clothesBtn.addEventListener("click", openClothingTypes);
+    bar.appendChild(clothesBtn);
 
     var colorBtn = el("button", "owner-btn", "Colors");
     colorBtn.type = "button";
