@@ -41,6 +41,35 @@
 
   setCategories(categoryFilters);
 
+  var clothingTypes = data.clothingTypes;
+
+  var selectedClothingTypes = new Set(
+    clothingTypes.map(function (type) {
+      return type.value;
+    })
+  );
+
+  // Clothing types start from firebase-config.js; the owner can change them on the site.
+  function setClothingTypes(list) {
+    var wasAll = selectedClothingTypes.size === clothingTypes.length;
+    clothingTypes = list;
+    var valid = {};
+    list.forEach(function (type) {
+      valid[type.value] = true;
+    });
+    selectedClothingTypes = new Set(
+      Array.from(selectedClothingTypes).filter(function (value) {
+        return valid[value];
+      })
+    );
+    // If nothing was narrowed before, new types start out selected too.
+    if (wasAll) {
+      list.forEach(function (type) {
+        selectedClothingTypes.add(type.value);
+      });
+    }
+  }
+
   /* ---------- Colors ---------- */
 
   // The six colors the owner can change. These match the stylesheet's defaults.
@@ -131,6 +160,7 @@
   function applySettings(settings) {
     lastSettings = settings || null;
     if (settings && Array.isArray(settings.categories)) setCategories(settings.categories);
+    if (settings && Array.isArray(settings.clothingTypes)) setClothingTypes(settings.clothingTypes);
     applyTheme(settings && settings.theme);
 
     try {
@@ -147,19 +177,12 @@
     if (cachedSettings) {
       lastSettings = cachedSettings;
       if (Array.isArray(cachedSettings.categories)) setCategories(cachedSettings.categories);
+      if (Array.isArray(cachedSettings.clothingTypes)) setClothingTypes(cachedSettings.clothingTypes);
       applyTheme(cachedSettings.theme);
     }
   } catch (e) {
     /* ignore a missing or unreadable cache */
   }
-
-  var clothingTypes = data.clothingTypes;
-
-  var selectedClothingTypes = new Set(
-    clothingTypes.map(function (type) {
-      return type.value;
-    })
-  );
 
   var favOnly = false;
   var staleOnly = false; // owner-only: show just items whose price needs checking
@@ -391,6 +414,7 @@
     var clothingOk =
       !selectedCategories.has("Clothes") ||
       card.tags.indexOf("Clothes") === -1 ||
+      selectedClothingTypes.size === clothingTypes.length ||
       card.clothingTypes.some(function (type) {
         return selectedClothingTypes.has(type);
       });

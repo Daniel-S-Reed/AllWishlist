@@ -168,6 +168,17 @@ async function saveSettings(settings) {
       });
   }
 
+  if (Array.isArray(settings.clothingTypes)) {
+    const seenTypes = new Set();
+    out.clothingTypes = settings.clothingTypes
+      .map((c) => ({ value: String(c.value || "").trim(), label: String(c.label || "").trim() }))
+      .filter((c) => {
+        if (!c.value || !c.label || seenTypes.has(c.value)) return false;
+        seenTypes.add(c.value);
+        return true;
+      });
+  }
+
   if (settings.theme) {
     out.theme = {};
     THEME_KEYS.forEach((key) => {
